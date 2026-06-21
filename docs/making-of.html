@@ -283,6 +283,46 @@
   </div>
 </section>
 
+<!-- KI-STACK -->
+<section>
+  <div class="wrap">
+    <div class="kicker">// Der lokale KI-Stack</div>
+    <h2>Zwei Engines auf dem Mac.<br><span class="u">Was sie sind, warum, wie installiert.</span></h2>
+    <p class="big">Murmel braucht zwei lokale Bausteine — beide laufen offline, beide installiert das
+      mitgelieferte <code>setup.sh</code> per Homebrew. Hier ist genau, was sie tun und wie sie laufen.</p>
+
+    <div class="feat">
+      <div class="f"><span class="ic">🎤</span><h4>whisper.cpp · large-v3-turbo</h4>
+        <p><b>Was:</b> OpenAIs Whisper-Spracherkennung, als hochoptimiertes C++ (whisper.cpp) lokal auf
+           Apple Silicon. <b>Warum:</b> exzellentes Deutsch bei hoher Geschwindigkeit, komplett offline.
+           <b>Größe:</b> Modell ~1,5 GB in <code>~/.murmel/models</code>. Aufruf über die Binary <code>whisper-cli</code>.</p></div>
+      <div class="f"><span class="ic">🦙</span><h4>Ollama — was ist das?</h4>
+        <p><b>Was:</b> ein schlanker lokaler Server, der Open-Source-Sprachmodelle auf dem eigenen Rechner
+           ausführt — quasi „Docker für LLMs". <b>Wie gehostet:</b> per Homebrew installiert, läuft als
+           Dienst und lauscht lokal auf <code>127.0.0.1:11434</code>. <b>Warum:</b> macht ein lokales LLM
+           über eine simple HTTP-API nutzbar — kein API-Key, keine Cloud, keine Kosten.</p></div>
+      <div class="f"><span class="ic">✨</span><h4>Qwen2.5 : 3B</h4>
+        <p><b>Was:</b> ein kompaktes 3-Milliarden-Parameter-Sprachmodell (Alibaba, Apache-2.0), läuft in
+           Ollama. <b>Größe:</b> ~1,9 GB. <b>Warum dieses:</b> klein genug für sofortige Politur ohne spürbare
+           Wartezeit, stark genug für „ähm raus, Satzzeichen rein" — gezähmt mit striktem System-Prompt.</p></div>
+      <div class="f"><span class="ic">💾</span><h4>Gesamt-Fußabdruck</h4>
+        <p>Einmalig <b>~3,4 GB</b> Modelle laden (Whisper + Qwen). Danach läuft alles <b>offline</b>,
+           dauerhaft kostenlos — und kein Wort verlässt je den Rechner.</p></div>
+    </div>
+
+    <div class="term">
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+<pre><span class="dim"># Scripts/setup.sh — einmalig, idempotent, alles lokal</span>
+<span class="dim">$</span> brew install whisper-cpp            <span class="dim"># → Binary: whisper-cli</span>
+<span class="dim">$</span> curl -L …/ggml-large-v3-turbo.bin   <span class="dim"># ~1,5 GB → ~/.murmel/models</span>
+<span class="dim">$</span> brew install ollama                 <span class="dim"># lokaler LLM-Server</span>
+<span class="dim">$</span> ollama serve                        <span class="dim"># lauscht auf 127.0.0.1:11434</span>
+<span class="dim">$</span> ollama pull qwen2.5:3b              <span class="dim"># ~1,9 GB Politur-Modell</span>
+<span class="ok">=== Setup abgeschlossen — 100% lokal, 0 €/Monat ===</span></pre>
+    </div>
+  </div>
+</section>
+
 <!-- DEBUGGING -->
 <section>
   <div class="wrap">
