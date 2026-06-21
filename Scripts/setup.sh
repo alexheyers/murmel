@@ -41,6 +41,18 @@ else
     echo "✓ Modell gespeichert: $MODEL_FILE"
 fi
 
+# 3b) Schnelles base-Modell für die Live-Vorschau (Streaming)
+PREVIEW_MODEL="$MODEL_DIR/ggml-base.bin"
+PREVIEW_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+if [[ -f "$PREVIEW_MODEL" ]]; then
+    echo "✓ Vorschau-Modell vorhanden ($PREVIEW_MODEL)"
+else
+    echo "▶︎ Lade Vorschau-Modell base (~150 MB, für Live-Streaming)…"
+    curl -L --fail --progress-bar -o "$PREVIEW_MODEL" "$PREVIEW_URL" \
+        && echo "✓ Vorschau-Modell gespeichert" \
+        || echo "⚠︎ base-Modell-Download fehlgeschlagen — Live-Vorschau bleibt aus, Rest läuft."
+fi
+
 # 4) Ollama
 if ! command -v ollama >/dev/null 2>&1; then
     echo "▶︎ Installiere Ollama…"

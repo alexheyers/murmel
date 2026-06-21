@@ -22,6 +22,17 @@ final class Settings: ObservableObject {
         didSet { applyLaunchAtLogin(launchAtLogin) }
     }
 
+    /// Live-Vorschau (Streaming): zeigt während des Sprechens fortlaufend Text in einem Overlay.
+    @Published var streamingEnabled: Bool {
+        didSet { defaults.set(streamingEnabled, forKey: Keys.streaming) }
+    }
+
+    /// Schnelles Modell für die Live-Vorschau (klein, lädt schnell). Final bleibt large-v3-turbo.
+    var previewModelPath: String {
+        get { defaults.string(forKey: Keys.previewModel) ?? MurmelPaths.modelsDir.appendingPathComponent("ggml-base.bin").path }
+        set { defaults.set(newValue, forKey: Keys.previewModel) }
+    }
+
     // MARK: Pfade & externe Tools (mit sinnvollen Defaults)
 
     /// Pfad zur whisper-cli-Binary. Sucht Homebrew (arm64 + intel) ab.
@@ -59,6 +70,8 @@ final class Settings: ObservableObject {
 
         let triggerRaw = defaults.string(forKey: Keys.trigger) ?? HotkeyTrigger.fn.rawValue
         self.hotkeyTrigger = HotkeyTrigger(rawValue: triggerRaw) ?? .fn
+
+        self.streamingEnabled = defaults.bool(forKey: Keys.streaming)
 
         if #available(macOS 13.0, *) {
             self.launchAtLogin = (SMAppService.mainApp.status == .enabled)
@@ -138,5 +151,7 @@ final class Settings: ObservableObject {
         static let ollamaModel = "murmel.ollamaModel"
         static let language = "murmel.language"
         static let instrPrefix = "murmel.instr."
+        static let streaming = "murmel.streaming"
+        static let previewModel = "murmel.previewModel"
     }
 }

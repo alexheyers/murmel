@@ -56,6 +56,10 @@ final class AudioRecorder: AudioRecording {
     /// Ob gerade aufgenommen wird.
     private var isRecording = false
 
+    /// Konvertierte 16-kHz-Mono-Samples im Speicher — Basis für `snapshotWAV()`
+    /// (Live-Vorschau). Wird bei Start/Stop geleert. Über stateQueue geschützt.
+    private var pcmSamples: [Float] = []
+
     // MARK: - Init
 
     init() {}
@@ -125,6 +129,7 @@ final class AudioRecorder: AudioRecording {
             self.currentURL = url
             self.writtenFrames = 0
             self.isRecording = true
+            self.pcmSamples.removeAll(keepingCapacity: true)
         }
 
         // Tap auf den Input-Node: liefert Hardware-Puffer, die wir konvertieren
@@ -168,6 +173,7 @@ final class AudioRecorder: AudioRecording {
             self.isRecording = false
             self.currentURL = nil
             self.writtenFrames = 0
+            self.pcmSamples.removeAll(keepingCapacity: false)
             return (u, f)
         }
 
@@ -237,8 +243,14 @@ final class AudioRecorder: AudioRecording {
         do {
             try file.write(from: outputBuffer)
             let written = outputBuffer.frameLength
+            // Samples zusätzlich im Speicher halten (für Live-Vorschau-Snapshots).
+            let n = Int(written)
+            let ch0 = outputBuffer.floatChannelData?[0]
             stateQueue.sync {
                 self.writtenFrames &+= written
+                if let ch0 {
+                    self.pcmSamples.append(contentsOf: UnsafeBufferPointer(start: ch0, count: n))
+                }
             }
         } catch {
             // Schreibfehler: diesen Puffer verwerfen, Aufnahme nicht abbrechen.
@@ -258,6 +270,49 @@ final class AudioRecorder: AudioRecording {
             self.isRecording = false
             self.currentURL = nil
             self.writtenFrames = 0
+            self.pcmSamples.removeAll(keepingCapacity: false)
+        }
+    }
+
+    // MARK: - Live-Vorschau-Snapshot
+
+    /// Schreibt die bisher aufgenommenen Samples in eine temporäre WAV — ohne die
+    /// laufende Aufnahme zu beeinflussen. Für die Streaming-Vorschau.
+    func snapshotWAV() -> URL? {
+        let samples: [Float] = stateQueue.sync { pcmSamples }
+        // Mindestens ~0,4 s Audio, sonst lohnt die Transkription nicht.
+        guard samples.count >= Int(targetSampleRate * 0.4) else { return nil }
+
+        guard
+            let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                    sampleRate: targetSampleRate,
+                                    channels: targetChannels,
+                                    interleaved: false),
+            let buffer = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(samples.count))
+        else { return nil }
+
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        if let dst = buffer.floatChannelData?[0] {
+            samples.withUnsafeBufferPointer { src in
+                if let base = src.baseAddress { dst.update(from: base, count: samples.count) }
+            }
+        }
+
+        let url = MurmelPaths.recordingsDir.appendingPathComponent("snap-\(UUID().uuidString).wav")
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: targetSampleRate,
+            AVNumberOfChannelsKey: targetChannels,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
+        ]
+        do {
+            let file = try AVAudioFile(forWriting: url, settings: settings)
+            try file.write(from: buffer)
+            return url
+        } catch {
+            return nil
         }
     }
 }

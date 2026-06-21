@@ -20,6 +20,9 @@ protocol AudioRecording: AnyObject {
     func startRecording() throws
     /// Stoppt die Aufnahme und liefert die fertige WAV-Datei (oder nil bei Stille/Fehler).
     func stopRecording() -> URL?
+    /// Schreibt das bisher Aufgenommene in eine temporäre WAV (für Live-Vorschau),
+    /// ohne die laufende Aufnahme zu stoppen. nil, wenn (noch) zu wenig Audio da ist.
+    func snapshotWAV() -> URL?
 }
 
 /// Wandelt eine WAV-Datei in Text (whisper.cpp).

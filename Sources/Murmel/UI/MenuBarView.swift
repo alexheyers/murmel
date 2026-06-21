@@ -19,6 +19,10 @@ struct MenuBarView: View {
             Toggle("Bei Anmeldung starten", isOn: $settings.launchAtLogin)
                 .toggleStyle(.checkbox)
 
+            Toggle("Live-Vorschau beim Sprechen", isOn: $settings.streamingEnabled)
+                .toggleStyle(.checkbox)
+                .help("Zeigt während des Sprechens fortlaufend Text in einem Overlay (lokales base-Modell).")
+
             Divider()
 
             Button {

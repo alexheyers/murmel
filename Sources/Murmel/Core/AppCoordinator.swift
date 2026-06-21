@@ -16,7 +16,14 @@ final class AppCoordinator: ObservableObject {
     // Komponenten (konkrete Klassen kommen aus den Einzeldateien).
     private let recorder: AudioRecording
     private let transcriber: Transcribing
+    /// Schnelles base-Modell für die Live-Vorschau (Streaming).
+    private let previewTranscriber: WhisperTranscriber
     private let polisher: OllamaPolisher
+
+    // Streaming-Vorschau
+    private let overlay = LiveOverlay()
+    private var streamTimer: Timer?
+    private var previewBusy = false
     private let inserter: TextInserting
     private let hotkey: HotkeyMonitoring
     /// Konkreter Store (ObservableObject) — wird auch von der Wörterbuch-UI beobachtet.
@@ -32,6 +39,11 @@ final class AppCoordinator: ObservableObject {
         self.transcriber = WhisperTranscriber(
             binaryPath: s.whisperBinaryPath,
             modelPath: s.whisperModelPath,
+            language: s.language
+        )
+        self.previewTranscriber = WhisperTranscriber(
+            binaryPath: s.whisperBinaryPath,
+            modelPath: s.previewModelPath,
             language: s.language
         )
         self.polisher = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel)
@@ -91,6 +103,7 @@ final class AppCoordinator: ObservableObject {
             phase = .recording
             Log.line("Aufnahme gestartet")
             Sounds.start()
+            if settings.streamingEnabled { startStreaming() }
         } catch {
             phase = .error(error.localizedDescription)
             lastError = error.localizedDescription
@@ -103,6 +116,8 @@ final class AppCoordinator: ObservableObject {
         Log.line("handleRelease() — phase=\(String(describing: phase))")
         guard phase == .recording else { return }
         Sounds.stop()
+        stopStreamTimer()
+        if settings.streamingEnabled { overlay.setState(.thinking) }
         let wav = recorder.stopRecording()
         Log.line("Aufnahme gestoppt — wav=\(wav?.lastPathComponent ?? "nil")")
         phase = .transcribing
@@ -112,6 +127,10 @@ final class AppCoordinator: ObservableObject {
     // MARK: - Pipeline
 
     private func runPipeline(wav: URL?) async {
+        // Overlay-Lebenszyklus zentral: bei Erfolg „fertig", sonst ausblenden.
+        var pipelineSucceeded = false
+        defer { if pipelineSucceeded { finishOverlay() } else { cancelOverlay() } }
+
         guard let wav else {
             phase = .idle
             Sounds.soft()
@@ -185,6 +204,7 @@ final class AppCoordinator: ObservableObject {
 
             cleanup(wav)
             phase = .idle
+            pipelineSucceeded = true
         } catch {
             // Audio NICHT löschen — Diktat geht nicht verloren.
             Log.line("Pipeline FEHLER: \(error.localizedDescription)")
@@ -251,6 +271,55 @@ final class AppCoordinator: ObservableObject {
             out.append(VocabSuggestion(wrong: w, right: r))
         }
         return out
+    }
+
+    // MARK: - Streaming-Vorschau
+
+    private func startStreaming() {
+        overlay.show()
+        previewBusy = false
+        let t = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.streamingTick() }
+        }
+        streamTimer = t
+    }
+
+    private func stopStreamTimer() {
+        streamTimer?.invalidate()
+        streamTimer = nil
+    }
+
+    private func finishOverlay() {
+        stopStreamTimer()
+        guard settings.streamingEnabled else { return }
+        overlay.setState(.done)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            overlay.hide()
+        }
+    }
+
+    private func cancelOverlay() {
+        stopStreamTimer()
+        overlay.hide()
+    }
+
+    /// Ein Vorschau-Tick: aktuellen Audio-Stand schnappen, mit base-Modell
+    /// transkribieren und ins Overlay schreiben. Überlappungen werden vermieden.
+    private func streamingTick() {
+        guard settings.streamingEnabled, phase == .recording, !previewBusy else { return }
+        guard let snap = recorder.snapshotWAV() else { return }
+        previewBusy = true
+        Task { @MainActor in
+            defer { previewBusy = false }
+            do {
+                let text = try await previewTranscriber.transcribe(snap)
+                try? FileManager.default.removeItem(at: snap)
+                if phase == .recording, !text.isEmpty { overlay.update(text) }
+            } catch {
+                try? FileManager.default.removeItem(at: snap)
+            }
+        }
     }
 
     // MARK: - Helpers
