@@ -31,6 +31,9 @@ cp "$BIN_PATH" "$APP/Contents/MacOS/$BIN_NAME"
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+echo "▶︎ Erweiterte Attribute strippen (verhindert codesign ‚resource fork'-Fehler)…"
+xattr -cr "$APP"
+
 echo "▶︎ Ad-hoc-Signatur…"
 codesign --force --deep --sign - "$APP"
 
