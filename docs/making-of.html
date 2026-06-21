@@ -3,423 +3,296 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Murmel — Making-of · Vibe Coding Bootcamp</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&family=Lato:wght@400;700;900&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<title>Murmel — Making-of</title>
+<meta name="description" content="Making-of: Wie ich mir an einem Tag mein eigenes Wispr-Flow gebaut habe — native macOS-App in Swift, lokal mit whisper.cpp + Ollama, mit 8 KI-Agents parallel, debuggt bis es läuft.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='25' y='12' width='14' height='26' rx='7' fill='none' stroke='%23C8623B' stroke-width='5'/><path d='M18 32a14 14 0 0 0 28 0' fill='none' stroke='%231F9E8C' stroke-width='5' stroke-linecap='round'/><line x1='32' y1='46' x2='32' y2='54' stroke='%231F9E8C' stroke-width='5' stroke-linecap='round'/></svg>">
 <style>
-  :root{
-    --navy:#0F1F3D; --navy-2:#16294d; --teal:#0D9488; --teal-bright:#14b8a6;
-    --amber:#F59E0B; --cream:#FDF8F0; --white:#ffffff; --slate:#94a3b8; --slate-deep:#475569;
-    --line:rgba(255,255,255,.08);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{background:var(--navy);color:var(--cream);font-family:'Lato',sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:920px;margin:0 auto;padding:0 24px}
-  code,.mono{font-family:'Source Code Pro',monospace}
+:root{
+  --paper:#F6F1E9;--paper2:#EFE7DB;--ink:#23201A;--ink-60:rgba(35,32,26,.62);--ink-40:rgba(35,32,26,.42);--ink-20:rgba(35,32,26,.2);
+  --coral:#C8623B;--coral-soft:#E08A6A;--teal:#1F9E8C;--peach:#F0CBA8;
+  --term:#181612;--term-fg:#EDE7DC;
+  --disp:'Fraunces',serif;--sans:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+  --glass:rgba(255,255,255,.5);--glass-bd:rgba(255,255,255,.6);
+  --ezl:cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+code{font-family:var(--mono);font-size:.9em;background:var(--paper2);padding:.1em .35em;border-radius:5px}
+.wrap{width:min(1180px,92vw);margin:0 auto}
 
-  /* HERO */
-  .hero{position:relative;padding:110px 0 80px;border-bottom:1px solid var(--line);
-    background:radial-gradient(1200px 500px at 70% -10%,rgba(13,148,136,.22),transparent 60%),
-               radial-gradient(900px 400px at 10% 10%,rgba(245,158,11,.10),transparent 55%);}
-  .badge{display:inline-flex;align-items:center;gap:8px;background:rgba(13,148,136,.15);
-    border:1px solid var(--teal);color:var(--teal-bright);padding:6px 14px;border-radius:100px;
-    font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
-  h1{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(44px,8vw,86px);
-    line-height:1.02;margin:22px 0 18px;color:var(--white);letter-spacing:-.02em}
-  h1 .em{color:var(--amber);font-style:italic;font-weight:500}
-  .lead{font-size:clamp(18px,2.4vw,23px);color:#dfe7f1;max-width:680px}
-  .meta{margin-top:34px;display:flex;flex-wrap:wrap;gap:10px}
-  .chip{font-family:'Source Code Pro',monospace;font-size:13px;color:var(--cream);
-    background:var(--navy-2);border:1px solid var(--line);padding:7px 13px;border-radius:8px}
-  .chip b{color:var(--teal-bright)}
+.aurora{position:fixed;inset:0;z-index:-2;overflow:hidden;filter:blur(60px);opacity:.5}
+.aurora span{position:absolute;border-radius:50%}
+.aurora .b1{width:46vw;height:46vw;background:radial-gradient(circle,#E89A78,transparent 65%);top:-12vw;left:-8vw;animation:drift 22s var(--ezl) infinite alternate}
+.aurora .b2{width:42vw;height:42vw;background:radial-gradient(circle,#7FC7BA,transparent 65%);top:42vh;right:-12vw;animation:drift2 27s var(--ezl) infinite alternate}
+.aurora .b3{width:40vw;height:40vw;background:radial-gradient(circle,#F0C9A0,transparent 65%);bottom:-16vw;left:26vw;animation:drift 31s var(--ezl) infinite alternate}
+@keyframes drift{to{transform:translate(6vw,4vh) scale(1.1)}}
+@keyframes drift2{to{transform:translate(-5vw,-3vh) scale(1.08)}}
 
-  /* FLOW STRIP */
-  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:40px;
-    font-family:'Source Code Pro',monospace;font-size:14px}
-  .flow span{background:var(--navy-2);border:1px solid var(--line);padding:9px 14px;border-radius:8px;white-space:nowrap}
-  .flow .arr{border:none;background:none;color:var(--teal-bright);padding:0 2px}
+.nav{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:1.4rem;align-items:center;padding:.7rem 1.4rem;background:var(--glass);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--glass-bd);border-radius:40px;box-shadow:0 10px 30px -12px rgba(35,32,26,.18);max-width:calc(100vw - 1.6rem)}
+.nav .back{font-family:var(--mono);font-size:.66rem;letter-spacing:.04em;color:var(--ink);font-weight:500;white-space:nowrap}
+.nav .back:hover{color:var(--coral)}
+.nav .sep{width:1px;height:16px;background:var(--ink-20)}
+.nav .tag{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-40)}
+.nav .gh{font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;background:var(--ink);color:var(--paper);padding:.45rem .85rem;border-radius:30px;transition:background .3s,transform .3s;white-space:nowrap}
+.nav .gh:hover{background:var(--coral);transform:translateY(-1px)}
+@media(max-width:560px){.nav .tag{display:none}}
 
-  section{padding:72px 0;border-bottom:1px solid var(--line)}
-  .kicker{font-family:'Source Code Pro',monospace;color:var(--teal-bright);font-size:14px;
-    letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
-  h2{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(30px,5vw,46px);
-    color:var(--white);line-height:1.08;margin-bottom:20px;letter-spacing:-.01em}
-  h2 .u{background:linear-gradient(transparent 62%,rgba(245,158,11,.45) 62%)}
-  p.big{font-size:18px;color:#dbe3ee;max-width:720px;margin-bottom:18px}
+.hero{padding:9rem 0 3rem;position:relative}
+.kick{font-family:var(--mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--coral);display:flex;gap:.7rem;align-items:center}
+.kick::before{content:"";width:30px;height:1px;background:var(--coral)}
+h1{font-family:var(--disp);font-weight:500;font-size:clamp(2.6rem,7.5vw,5.6rem);line-height:1;letter-spacing:-.02em;margin-top:1.4rem;max-width:16ch}
+h1 em{font-style:italic;font-weight:500;color:var(--coral)}
+.lead{font-size:clamp(1.05rem,1.4vw,1.22rem);color:var(--ink-60);max-width:56ch;margin-top:1.6rem;font-weight:400}
+.lead b{color:var(--ink);font-weight:500}
+.metas{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:2.2rem}
+.pill{font-family:var(--mono);font-size:.62rem;letter-spacing:.04em;padding:.5rem .85rem;background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--glass-bd);border-radius:30px;color:var(--ink-60)}
+.pill b{color:var(--coral);font-weight:600}
 
-  /* STEP CARDS */
-  .steps{display:grid;gap:18px;margin-top:34px}
-  .step{display:grid;grid-template-columns:64px 1fr;gap:20px;background:var(--navy-2);
-    border:1px solid var(--line);border-radius:16px;padding:24px 26px;align-items:start}
-  .step .n{font-family:'Playfair Display',serif;font-weight:900;font-size:34px;color:var(--teal-bright);
-    line-height:1;border-right:1px solid var(--line);padding-right:18px}
-  .step h3{font-size:20px;color:var(--white);margin-bottom:6px;font-weight:900}
-  .step p{color:#cdd6e3;font-size:15.5px}
-  .step .tag{display:inline-block;margin-top:10px;font-family:'Source Code Pro',monospace;font-size:12.5px;
-    color:var(--amber);background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);
-    padding:4px 9px;border-radius:6px}
+.liveshot{margin-top:2.4rem;background:var(--glass);backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--glass-bd);border-radius:22px;padding:.7rem;box-shadow:0 34px 64px -30px rgba(35,32,26,.42);overflow:hidden}
+.liveshot img{border-radius:16px;width:100%;height:auto}
+.liveshot figcaption{font-family:var(--mono);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-40);padding:.8rem .5rem .25rem}
 
-  /* DECISIONS TABLE */
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:30px}
-  .dec{background:var(--navy-2);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
-  .dec .q{color:var(--slate);font-size:13px;font-family:'Source Code Pro',monospace;text-transform:uppercase;letter-spacing:.06em}
-  .dec .a{color:var(--white);font-size:18px;font-weight:700;margin-top:6px}
-  .dec .a b{color:var(--teal-bright)}
+section.blk{padding:4rem 0;position:relative}
+.lab{font-family:var(--mono);font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--coral);display:flex;gap:.7rem;align-items:center}
+.lab .no{color:var(--ink-40)}
+h2{font-family:var(--disp);font-weight:500;font-size:clamp(2rem,4.4vw,3.3rem);line-height:1.04;letter-spacing:-.015em;margin-top:1rem;max-width:20ch}
+h2 em{font-style:italic;color:var(--coral)}
+.intro{max-width:62ch;margin-top:1.3rem;color:var(--ink-60);font-size:1.05rem}
+.intro b{color:var(--ink);font-weight:500}
+blockquote{font-family:var(--disp);font-weight:500;font-style:italic;font-size:clamp(1.4rem,3vw,2.1rem);color:var(--ink);line-height:1.3;border-left:3px solid var(--coral);padding:.3rem 0 .3rem 1.4rem;margin-top:1.8rem;max-width:24ch}
+.rv{opacity:0;transform:translateY(30px);transition:opacity .9s var(--ezl) var(--d,0s),transform 1s var(--ezl) var(--d,0s)}
+.rv.in{opacity:1;transform:none}
 
-  /* FEATURES */
-  .feat{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:30px}
-  .f{background:linear-gradient(180deg,var(--navy-2),rgba(22,41,77,.4));border:1px solid var(--line);
-    border-radius:14px;padding:20px 22px}
-  .f .ic{font-size:24px;margin-bottom:10px;display:block}
-  .f h4{color:var(--white);font-size:17px;margin-bottom:5px}
-  .f p{color:#c3cdda;font-size:14.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:2.4rem}
+@media(max-width:680px){.grid2{grid-template-columns:1fr}}
+.dec{background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--glass-bd);border-radius:14px;padding:1.1rem 1.3rem}
+.dec .q{font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-40)}
+.dec .a{font-size:1.08rem;font-weight:500;color:var(--ink);margin-top:.3rem}
+.dec .a b{color:var(--coral)}
 
-  /* TERMINAL */
-  .term{background:#0a1429;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:28px}
-  .term .bar{display:flex;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);background:#0c1730}
-  .term .bar i{width:12px;height:12px;border-radius:50%;display:inline-block}
-  .term .bar .r{background:#ff5f57}.term .bar .y{background:#febc2e}.term .bar .g{background:#28c840}
-  .term pre{padding:20px;font-family:'Source Code Pro',monospace;font-size:13.5px;line-height:1.7;
-    color:#cdd6e3;overflow-x:auto}
-  .term .c{color:var(--teal-bright)}.term .ok{color:#28c840}.term .dim{color:var(--slate-deep)}.term .am{color:var(--amber)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;margin-top:2.4rem}
+@media(max-width:820px){.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.cards{grid-template-columns:1fr}}
+.card{background:var(--glass);backdrop-filter:blur(14px) saturate(1.3);border:1px solid var(--glass-bd);border-radius:18px;padding:1.4rem 1.4rem;transition:transform .45s var(--ezl),box-shadow .45s,border-color .45s}
+.card:hover{transform:translateY(-4px);border-color:var(--coral);box-shadow:0 22px 44px -26px rgba(200,98,59,.4)}
+.card .ic{font-family:var(--mono);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)}
+.card h4{font-family:var(--disp);font-weight:600;font-size:1.18rem;margin:.45rem 0 .4rem}
+.card p{font-size:.9rem;color:var(--ink-60)}
+.card p b{color:var(--ink);font-weight:500}
 
-  /* PERMISSIONS */
-  .perm{display:grid;gap:12px;margin-top:28px}
-  .pr{display:grid;grid-template-columns:46px 1fr;gap:16px;background:var(--navy-2);border:1px solid var(--line);
-    border-radius:12px;padding:18px 20px;align-items:center}
-  .pr .ic{font-size:24px;text-align:center}
-  .pr h4{color:var(--white);font-size:16px}
-  .pr p{color:#c3cdda;font-size:14px}
+.term{margin-top:2.2rem;background:var(--term);border-radius:16px;overflow:hidden;box-shadow:0 24px 50px -28px rgba(35,32,26,.5)}
+.term .bar{display:flex;gap:6px;align-items:center;padding:.7rem .95rem;border-bottom:1px solid rgba(255,255,255,.07)}
+.term .bar i{width:10px;height:10px;border-radius:50%;background:#3a352d}
+.term .bar .t{margin-left:.6rem;font-family:var(--mono);font-size:.62rem;color:#8a8278;letter-spacing:.04em}
+.term pre{padding:1.2rem 1.3rem;font-family:var(--mono);font-size:.78rem;line-height:1.85;color:var(--term-fg);overflow-x:auto;white-space:pre-wrap}
+.cl-g{color:#76C08E}.cl-y{color:#E6B45C}.cl-t{color:#7FC7BA}.cl-a{color:#E0796B}.cl-d{color:#8a8278}
 
-  /* ARCH */
-  .arch{background:var(--navy-2);border:1px solid var(--line);border-radius:16px;padding:26px;margin-top:28px;
-    font-family:'Source Code Pro',monospace;font-size:13px;color:#cdd6e3;overflow-x:auto}
-  .arch b{color:var(--teal-bright)}.arch .am{color:var(--amber)}
+.proof{background:var(--ink);color:var(--paper);border-radius:26px;padding:clamp(2rem,5vw,3.6rem);margin-top:2.8rem}
+.proof .lab{color:var(--coral-soft)}.proof .lab .no{color:rgba(246,241,233,.4)}
+.proof h2{color:var(--paper)}.proof h2 em{color:var(--coral-soft)}
+.proof .intro{color:rgba(246,241,233,.7)}.proof .intro b{color:var(--paper)}
+.kpis{display:flex;gap:2.4rem;flex-wrap:wrap;margin-top:2.4rem;border-top:1px solid rgba(246,241,233,.18);padding-top:1.8rem}
+.kpi .v{font-family:var(--disp);font-weight:600;font-size:2.6rem;color:var(--coral-soft);line-height:1}
+.kpi .l{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-top:.4rem}
 
-  blockquote{font-family:'Playfair Display',serif;font-style:italic;font-weight:500;
-    font-size:clamp(22px,3.6vw,32px);color:var(--white);line-height:1.3;
-    border-left:4px solid var(--amber);padding:6px 0 6px 26px;margin:14px 0}
+.foot{padding:5rem 0 4rem}
+.foot .ready{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--teal)}
+.foot h2{margin-top:1rem}.foot h2 em{color:var(--coral)}
+.contacts{display:flex;flex-direction:column;gap:.4rem;margin-top:2rem;max-width:560px}
+.contacts a{display:flex;justify-content:space-between;align-items:center;padding:1.1rem .2rem;border-bottom:1px solid var(--ink-20);font-family:var(--mono);font-size:.86rem;transition:padding .35s var(--ezl),color .35s}
+.contacts a span{font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-40)}
+.contacts a:hover{padding-left:1rem;color:var(--coral)}
+.copyline{margin-top:2.4rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;color:var(--ink-40)}
 
-  footer{padding:60px 0 80px;text-align:center;color:var(--slate)}
-  footer .big{font-family:'Playfair Display',serif;font-size:28px;color:var(--white);margin-bottom:8px}
-  a{color:var(--teal-bright)}
-
-  @media(max-width:680px){
-    .grid2,.feat{grid-template-columns:1fr}
-    .step{grid-template-columns:1fr}.step .n{border:none;padding:0}
-  }
+@media(prefers-reduced-motion:reduce){*{animation:none!important}.rv{opacity:1!important;transform:none!important}}
 </style>
 </head>
 <body>
+<div class="aurora"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
 
-<header class="hero">
-  <div class="wrap">
-    <span class="badge">🎙️ Making-of · Vibe Coding Bootcamp</span>
-    <h1>Ich habe mir <span class="em">Wispr&nbsp;Flow</span><br>selbst gebaut.</h1>
-    <p class="lead">An einem Nachmittag. Mit Claude Code im Terminal. Eine native macOS-App,
-      die zuhört, wenn ich eine Taste halte — und das Gesprochene lokal in sauberen Text verwandelt.
-      Kein Abo, keine Cloud, läuft komplett offline auf meinem Mac.</p>
+<nav class="nav">
+  <a class="back" href="https://alexander-heyers-portfolio.vercel.app/">← Alex Heyers</a>
+  <span class="sep"></span>
+  <span class="tag">Making-of · Vibe Coding</span>
+  <a class="gh" href="https://github.com/alexheyers/murmel" target="_blank" rel="noopener">GitHub ↗</a>
+</nav>
 
-    <div class="meta">
-      <span class="chip">Stack: <b>Swift</b> + whisper.cpp + Ollama</span>
-      <span class="chip">Code: <b>~1.400 Zeilen</b></span>
-      <span class="chip">Build: <b>8 Agents parallel</b></span>
-      <span class="chip">Kosten/Monat: <b>0&nbsp;€</b></span>
-    </div>
-
-    <div class="flow">
-      <span>fn halten</span><span class="arr">▶</span>
-      <span>🔴 Aufnahme</span><span class="arr">▶</span>
-      <span>whisper.cpp</span><span class="arr">▶</span>
-      <span>KI-Politur</span><span class="arr">▶</span>
-      <span>✅ ⌘V ins Fenster</span>
-    </div>
+<header class="hero wrap">
+  <div class="kick">Making-of · an einem Tag gebaut</div>
+  <h1>Ich habe mir <em>Wispr&nbsp;Flow</em> selbst gebaut.</h1>
+  <p class="lead">Eine native macOS-App, die zuhört, wenn ich eine Taste halte, und das Gesprochene lokal in sauberen Text verwandelt. <b>Kein Abo, keine Cloud</b> — alles läuft offline auf meinem Mac. Hier ist, wie sie entstand: die Entscheidungen, die 8 Agents, die zwei Bugs und der Beweis.</p>
+  <div class="metas">
+    <span class="pill"><b>Swift</b> · native macOS</span>
+    <span class="pill">whisper.cpp · Ollama</span>
+    <span class="pill"><b>8 Agents</b> parallel</span>
+    <span class="pill"><b>0 €</b>/Monat</span>
   </div>
+  <figure class="liveshot rv">
+    <img src="murmel-live.png" alt="Murmel läuft auf dem Mac — Panel in der Menüleiste über dem Terminal" loading="lazy" onerror="this.closest('.liveshot').style.display='none'">
+    <figcaption>// Murmel live — Panel in der Menüleiste, darunter das Terminal, in dem es entstand</figcaption>
+  </figure>
 </header>
 
-<!-- WARUM -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Der Auslöser</div>
-    <h2>Diktier-Tools wie Wispr Flow sind genial.<br><span class="u">Aber es sind Black Boxes mit Abo.</span></h2>
-    <p class="big">Ich wollte im Terminal per Stimme tippen. Statt ein Abo zu buchen, habe ich gefragt:
-      Kann ich das selbst bauen? Antwort: ja — und zwar so, dass mein Audio meinen Mac nie verlässt.
-      Das ist der Punkt von Vibe Coding. Nicht „kann ich programmieren", sondern „ist mir klar, was ich will".</p>
-    <blockquote>„Klarheit ist der Skill, nicht Syntax."</blockquote>
+<!-- 01 AUSLÖSER -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">01</span> Der Auslöser</div>
+  <h2 class="rv" style="--d:.06s">Diktier-Tools sind genial — aber <em>Black Boxes mit Abo.</em></h2>
+  <p class="intro rv" style="--d:.1s">Heute hat es mich geärgert, dass ich für ein Diktier-Tool 15&nbsp;€ im Monat zahlen soll, und mein Audio in deren Cloud wandert. Der Gedanke: Ich habe ein Mikrofon. Ich habe Claude&nbsp;Code. Ich habe alles, was ich brauche. <b>Was ich brauche, muss ich auch selbst bauen können.</b></p>
+  <blockquote class="rv" style="--d:.14s">Klarheit ist der Skill, nicht Syntax.</blockquote>
+</section>
+
+<!-- 02 ENTSCHEIDUNGEN -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">02</span> Erst Entscheidungen</div>
+  <h2 class="rv" style="--d:.06s">Fünf Fragen. <em>Dann</em> Code.</h2>
+  <p class="intro rv" style="--d:.1s">Bevor eine Zeile entstand, kamen fünf gezielte Fragen mit Trade-offs — der Unterschied zwischen „irgendwas bauen" und „das Richtige bauen".</p>
+  <div class="grid2">
+    <div class="dec rv" style="--d:.1s"><div class="q">Reichweite</div><div class="a">Erst <b>Terminal</b>, offen für systemweit</div></div>
+    <div class="dec rv" style="--d:.13s"><div class="q">Spracherkennung</div><div class="a">Lokal — <b>whisper.cpp</b>, 0 €</div></div>
+    <div class="dec rv" style="--d:.16s"><div class="q">Auslöser</div><div class="a"><b>fn-Taste halten</b> (Push-to-talk)</div></div>
+    <div class="dec rv" style="--d:.19s"><div class="q">Veredelung</div><div class="a">Lokale <b>KI-Politur</b> via Ollama</div></div>
+    <div class="dec rv" style="--d:.22s"><div class="q">Form</div><div class="a"><b>Menubar-App</b> mit Status & Sound</div></div>
+    <div class="dec rv" style="--d:.25s"><div class="q">Extras</div><div class="a">Wörterbuch · Verlauf · Stil-Modi</div></div>
   </div>
 </section>
 
-<!-- ENTSCHEIDUNGEN -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Schritt 1 — Brainstorming statt Drauflos</div>
-    <h2>Erst 5 Entscheidungen. Dann Code.</h2>
-    <p class="big">Bevor eine Zeile geschrieben wurde, hat Claude mir fünf gezielte Fragen gestellt —
-      jede mit Trade-offs. Das ist der Unterschied zwischen „irgendwas bauen" und „das Richtige bauen".</p>
-    <div class="grid2">
-      <div class="dec"><div class="q">Reichweite</div><div class="a">Erst <b>Terminal</b>, Architektur offen für systemweit</div></div>
-      <div class="dec"><div class="q">Spracherkennung</div><div class="a">Lokal — <b>whisper.cpp</b> (offline, 0 €)</div></div>
-      <div class="dec"><div class="q">Auslöser</div><div class="a"><b>fn-Taste halten</b> (Push-to-talk)</div></div>
-      <div class="dec"><div class="q">Veredelung</div><div class="a">Lokale <b>KI-Politur</b> via Ollama</div></div>
-      <div class="dec"><div class="q">Form</div><div class="a"><b>Menubar-App</b> mit Status & Sound</div></div>
-      <div class="dec"><div class="q">Extras</div><div class="a">Wörterbuch · Verlauf · Stil-Modi · Sprachbefehle</div></div>
-    </div>
+<!-- 03 8 AGENTS -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">03</span> Der Bauplan</div>
+  <h2 class="rv" style="--d:.06s">8 KI-Agents schreiben <em>parallel</em> eine App.</h2>
+  <p class="intro rv" style="--d:.1s">Der Trick: zuerst Gerüst + feste Verträge (Protokolle) — was jede Komponente können muss. Dann bekam jeder Agent <b>genau eine Datei</b> gegen diesen Vertrag. Kein Agent fasst fremden Code an → keine Konflikte.</p>
+  <div class="term rv" style="--d:.14s">
+    <div class="bar"><i></i><i></i><i></i><span class="t">8 Agents · parallel</span></div>
+<pre><span class="cl-a">✓</span> AudioRecorder.swift        <span class="cl-d">Mikro → 16 kHz Mono WAV</span>
+<span class="cl-a">✓</span> WhisperTranscriber.swift   <span class="cl-d">WAV → Text (whisper.cpp)</span>
+<span class="cl-a">✓</span> OllamaPolisher.swift       <span class="cl-d">Politur + Fallback auf Rohtext</span>
+<span class="cl-a">✓</span> PasteboardInserter.swift   <span class="cl-d">⌘V ins aktive Fenster</span>
+<span class="cl-a">✓</span> HotkeyMonitor.swift        <span class="cl-d">globaler fn-Halte-Hotkey</span>
+<span class="cl-a">✓</span> VocabularyStore.swift      <span class="cl-d">Fachbegriffe korrigieren</span>
+<span class="cl-a">✓</span> HistoryStore.swift         <span class="cl-d">Diktat-Verlauf (SQLite)</span>
+<span class="cl-a">✓</span> VoiceCommandProcessor.swift<span class="cl-d">„neue Zeile", „punkt" …</span>
+
+<span class="cl-d">$ swift build -c release</span>
+<span class="cl-g">Build complete!</span></pre>
   </div>
 </section>
 
-<!-- BUILD-SCHRITTE -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Schritt 2 — Der Bauplan</div>
-    <h2>Wie 8 KI-Agents parallel eine App schrieben.</h2>
-    <p class="big">Der Trick: Erst habe ich (bzw. Claude) das Gerüst und feste <i>Verträge</i> (Protokolle)
-      gebaut — was jede Komponente können muss. Dann bekam jeder Agent <b>genau eine Datei</b>
-      gegen diesen Vertrag. Kein Agent fasst fremden Code an → keine Konflikte.</p>
-
-    <div class="steps">
-      <div class="step"><div class="n">1</div><div>
-        <h3>Gerüst & Verträge</h3>
-        <p>Swift-Package, geteilte Datentypen und 8 Protokoll-Interfaces. Der „Stecker", in den alles passt.</p>
-        <span class="tag">Models · Protocols · AppCoordinator · MenuBar-UI</span>
-      </div></div>
-      <div class="step"><div class="n">2</div><div>
-        <h3>Fan-out: 8 Agents, 8 Dateien</h3>
-        <p>Mikrofon-Aufnahme, Whisper-Anbindung, Politur, Einfügen, Hotkey, Wörterbuch, Verlauf, Sprachbefehle —
-           alle gleichzeitig, jeder isoliert.</p>
-        <span class="tag">parallel · additiv · konfliktfrei</span>
-      </div></div>
-      <div class="step"><div class="n">3</div><div>
-        <h3>Integrieren & kompilieren</h3>
-        <p>Alles zusammenstecken, <code>swift build</code>. Ein einziger Concurrency-Fehler — gefixt. Build grün.</p>
-        <span class="tag">Build complete! (debug + release)</span>
-      </div></div>
-      <div class="step"><div class="n">4</div><div>
-        <h3>Verifizieren</h3>
-        <p>Logik-Selbsttest für Sprachbefehle, Stil-Modi und den Politur-Fallback. Alle Checks grün —
-           mit dem echten Code, nicht mit Behauptungen.</p>
-        <span class="tag">ALLE CHECKS GRÜN</span>
-      </div></div>
-      <div class="step"><div class="n">5</div><div>
-        <h3>Verpacken & versionieren</h3>
-        <p>Setup-Script, App-Bundle-Script, README. Git-Commit, privates GitHub-Repo, gepusht.</p>
-        <span class="tag">setup.sh · make-app.sh · git · GitHub</span>
-      </div></div>
-    </div>
-
-    <div class="term">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-<pre><span class="dim"># 8 Agents parallel ausgefahren …</span>
-<span class="c">✓</span> AudioRecorder.swift        <span class="dim">Mikro → 16 kHz Mono WAV</span>
-<span class="c">✓</span> WhisperTranscriber.swift   <span class="dim">WAV → Text (whisper.cpp)</span>
-<span class="c">✓</span> OllamaPolisher.swift       <span class="dim">Politur + Fallback auf Rohtext</span>
-<span class="c">✓</span> PasteboardInserter.swift   <span class="dim">⌘V ins aktive Fenster</span>
-<span class="c">✓</span> HotkeyMonitor.swift        <span class="dim">globaler fn-Halte-Hotkey</span>
-<span class="c">✓</span> VocabularyStore.swift      <span class="dim">Fachbegriffe korrigieren</span>
-<span class="c">✓</span> HistoryStore.swift         <span class="dim">Diktat-Verlauf (SQLite)</span>
-<span class="c">✓</span> VoiceCommandProcessor.swift<span class="dim">„neue Zeile", „punkt" …</span>
-
-<span class="dim">$ swift build -c release</span>
-<span class="ok">Build complete! (48.88s)</span>
-<span class="dim">$ ./Scripts/selftest.sh</span>
-<span class="ok">ALLE CHECKS GRÜN</span></pre>
-    </div>
+<!-- 04 KI-STACK -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">04</span> Der lokale KI-Stack</div>
+  <h2 class="rv" style="--d:.06s">Zwei Engines auf dem Mac. <em>Null</em> Cloud.</h2>
+  <p class="intro rv" style="--d:.1s">Beide laufen offline, beide installiert das mitgelieferte <code>setup.sh</code> per Homebrew.</p>
+  <div class="cards">
+    <div class="card rv" style="--d:.12s"><div class="ic">spracherkennung · ~1,5 GB</div><h4>whisper.cpp · large-v3-turbo</h4><p><b>Was:</b> OpenAIs Whisper als hochoptimiertes C++, lokal auf Apple Silicon. <b>Warum:</b> top Deutsch, schnell, erkennt Deutsch&nbsp;+&nbsp;Englisch gemischt.</p></div>
+    <div class="card rv" style="--d:.16s"><div class="ic">llm-runtime</div><h4>Ollama — was ist das?</h4><p><b>Was:</b> ein schlanker lokaler Server für Open-Source-LLMs — „Docker für LLMs". Per Homebrew, lauscht auf <code>127.0.0.1:11434</code>. <b>Warum:</b> lokales LLM per HTTP, kein API-Key.</p></div>
+    <div class="card rv" style="--d:.2s"><div class="ic">politur-modell · ~1,9 GB</div><h4>Qwen2.5 : 3B</h4><p><b>Was:</b> kompaktes 3-Mrd.-Modell (Alibaba, Apache-2.0), läuft in Ollama. <b>Warum:</b> klein genug für sofortige Politur, gezähmt mit striktem Prompt.</p></div>
+  </div>
+  <div class="term rv" style="--d:.16s">
+    <div class="bar"><i></i><i></i><i></i><span class="t">setup.sh — einmalig, alles lokal</span></div>
+<pre><span class="cl-d">$</span> brew install whisper-cpp            <span class="cl-d"># → whisper-cli</span>
+<span class="cl-d">$</span> curl -L …/ggml-large-v3-turbo.bin   <span class="cl-d"># ~1,5 GB → ~/.murmel/models</span>
+<span class="cl-d">$</span> brew install ollama                 <span class="cl-d"># lokaler LLM-Server</span>
+<span class="cl-d">$</span> ollama pull qwen2.5:3b              <span class="cl-d"># ~1,9 GB Politur-Modell</span>
+<span class="cl-g">=== ~3,4 GB gesamt · danach offline · 0 €/Monat ===</span></pre>
   </div>
 </section>
 
-<!-- FUNKTIONEN -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Was es kann</div>
-    <h2>Funktionen.</h2>
-    <div class="feat">
-      <div class="f"><span class="ic">🎙️</span><h4>Push-to-talk</h4><p>fn-Taste halten = Aufnahme, loslassen = einfügen. Wie ein Walkie-Talkie.</p></div>
-      <div class="f"><span class="ic">🔒</span><h4>100 % lokal</h4><p>Whisper läuft auf dem Mac. Kein Byte Audio geht ins Netz.</p></div>
-      <div class="f"><span class="ic">✨</span><h4>KI-Politur</h4><p>Ollama putzt den Text: ähm raus, Satzzeichen rein, sauberer Stil.</p></div>
-      <div class="f"><span class="ic">🎚️</span><h4>Stil-Modi</h4><p>Roh · E-Mail · Code-Kommentar · Claude-Prompt — passend zum Kontext.</p></div>
-      <div class="f"><span class="ic">📖</span><h4>Eigenes Wörterbuch</h4><p>n8n, Supabase, Claude Code & Co. werden korrekt geschrieben.</p></div>
-      <div class="f"><span class="ic">🕑</span><h4>Diktat-Verlauf</h4><p>Durchsuchbar (SQLite). Letztes Diktat per Klick erneut einfügen.</p></div>
-      <div class="f"><span class="ic">🗣️</span><h4>Sprachbefehle</h4><p>„neue Zeile", „punkt", „abbrechen" werden als Aktion erkannt.</p></div>
-      <div class="f"><span class="ic">🚀</span><h4>Auto-Start</h4><p>Läuft still in der Menüleiste, startet bei der Anmeldung mit.</p></div>
-    </div>
+<!-- 05 DEBUGGING -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">05</span> Als es nicht lief</div>
+  <h2 class="rv" style="--d:.06s">Zwei echte Bugs. <em>Systematisch</em> gejagt.</h2>
+  <p class="intro rv" style="--d:.1s">Statt zu raten: ein Datei-Log an jeder Pipeline-Stufe — und damit präzise gesehen, <i>wo</i> es bricht.</p>
+  <div class="cards">
+    <div class="card rv" style="--d:.12s"><div class="ic">bug 01 · signatur ↔ rechte</div><h4>Recht verschwand bei jedem Build</h4><p>macOS bindet das Bedienungshilfen-Recht an die Code-Signatur. Ad-hoc-Signaturen ändern den Hash bei jedem Build → Recht „stirbt". <b>Fix:</b> stabile selbst-signierte Identität.</p></div>
+    <div class="card rv" style="--d:.16s"><div class="ic">bug 02 · halluzination</div><h4>Die KI antwortete statt zu tippen</h4><p>Das Politur-Modell kippte das Wörterbuch in den Text und antwortete wie ein Chatbot. <b>Fix:</b> strikter System-Prompt + Halluzinations-Schutz + Standard „Roh".</p></div>
+    <div class="card rv" style="--d:.2s"><div class="ic">+ später · iCloud</div><h4>codesign „detritus"</h4><p>iCloud (Documents) hängt geschützte Attribute an die .app → codesign bricht. <b>Fix:</b> Bundle im Temp-Ordner außerhalb iCloud bauen & signieren.</p></div>
+  </div>
+  <div class="term rv" style="--d:.16s">
+    <div class="bar"><i></i><i></i><i></i><span class="t">~/.murmel/murmel.log</span></div>
+<pre><span class="cl-d"># Bug 2 — Eingabe vs. was das Modell daraus machte:</span>
+Rohtext   = <span class="cl-t">"Hallo!"</span>
+füge ein  = <span class="cl-a">"Claude, Docker, … n8n, wie kann ich Ihnen helfen?"</span>  <span class="cl-d"># 🤦</span>
+
+<span class="cl-d"># Nach den Fixes:</span>
+Rohtext   = <span class="cl-t">"Hallo!"</span>
+füge ein  = <span class="cl-g">"Hallo!"</span></pre>
   </div>
 </section>
 
-<!-- AUSBAU: VERWALTUNGSFENSTER -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Ausbaustufe</div>
-    <h2>Vom Diktat zum <span class="u">Werkzeug</span> — ein eigenes Fenster.</h2>
-    <p class="big">Nach dem Kern kam der Ausbau: ein natives, glasiges Verwaltungs-Fenster
-      (SwiftUI-Materials, Apple-Look) mit vier Bereichen — bedienbar wie Wispr Flow, nur selbst gebaut.</p>
-    <div class="feat">
-      <div class="f"><span class="ic">🕑</span><h4>Verlauf</h4><p>Alle Diktate durchsuchbar, je Eintrag „erneut einfügen".</p></div>
-      <div class="f"><span class="ic">🎚️</span><h4>Modi — editierbar</h4><p>Roh · E-Mail · Code-Kommentar · Claude-Prompt · <b>Brainstorming</b>. Aktiven Modus wählen und die Formulierung pro Modus selbst anpassen.</p></div>
-      <div class="f"><span class="ic">📖</span><h4>Wörterbuch-Editor</h4><p>Fachbegriffe selbst pflegen (gesprochen → korrekt), speichert sofort.</p></div>
-      <div class="f"><span class="ic">📊</span><h4>Sprachanalyse</h4><p>Wie du sprichst: Wörter pro Diktat & Satz, häufige Füllwörter, Top-Begriffe — plus Lern-Tipps. Alles lokal aus dem Verlauf.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- BERECHTIGUNGEN -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Berechtigungen</div>
-    <h2>Was die App darf — und warum.</h2>
-    <p class="big">Eine ehrliche Sache: Diktieren systemweit braucht echte macOS-Rechte. Murmel fragt
-      einmalig und erklärt jeden Punkt im Klartext.</p>
-    <div class="perm">
-      <div class="pr"><div class="ic">🎤</div><div><h4>Mikrofon</h4><p>Nimmt nur auf, solange du die Taste hältst. Audio bleibt lokal.</p></div></div>
-      <div class="pr"><div class="ic">♿</div><div><h4>Bedienungshilfen</h4><p>Damit die App den globalen Hotkey hört und ⌘V ins aktive Fenster auslöst.</p></div></div>
-      <div class="pr"><div class="ic">🌐</div><div><h4>fn-Taste freigeben</h4><p>Einmalig in den Systemeinstellungen, damit macOS dir die fn-Taste nicht wegschnappt.</p></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- ARCHITEKTUR -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Unter der Haube</div>
-    <h2>Architektur.</h2>
-    <p class="big">Eine Menubar-App, die zwei lokale Programme als Unterprozesse orchestriert.
-      Kein Server, kein Docker — nur die <code>.app</code>.</p>
-    <div class="arch">
-        fn halten ──▶ 🔴 Aufnahme ──▶ loslassen ──▶ ⏳ Verarbeitung ──▶ ✅ einfügen
-<br><br>┌─────────────────────────── <b>Murmel.app (Swift)</b> ───────────────────────────┐
-<br>│  <b>HotkeyMonitor</b> → <b>AudioRecorder</b> → <b>WhisperTranscriber</b> (whisper.cpp)         │
-<br>│                                       │                                  │
-<br>│                              <b>VoiceCommands</b> → <b>Vocabulary</b> → <b>Polisher</b> (Ollama) │
-<br>│                                       │                                  │
-<br>│                                   <b>History</b> (SQLite) → <b>TextInserter</b> (⌘V)     │
-<br>│                                                                          │
-<br>│  <span class="am">MenuBarUI · Settings · AppCoordinator (Zustandsmaschine)</span>                │
-<br>└──────────────────────────────────────────────────────────────────────────┘
-    </div>
-  </div>
-</section>
-
-<!-- KI-STACK -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Der lokale KI-Stack</div>
-    <h2>Zwei Engines auf dem Mac.<br><span class="u">Was sie sind, warum, wie installiert.</span></h2>
-    <p class="big">Murmel braucht zwei lokale Bausteine — beide laufen offline, beide installiert das
-      mitgelieferte <code>setup.sh</code> per Homebrew. Hier ist genau, was sie tun und wie sie laufen.</p>
-
-    <div class="feat">
-      <div class="f"><span class="ic">🎤</span><h4>whisper.cpp · large-v3-turbo</h4>
-        <p><b>Was:</b> OpenAIs Whisper-Spracherkennung, als hochoptimiertes C++ (whisper.cpp) lokal auf
-           Apple Silicon. <b>Warum:</b> exzellentes Deutsch bei hoher Geschwindigkeit, komplett offline.
-           <b>Größe:</b> Modell ~1,5 GB in <code>~/.murmel/models</code>. Aufruf über die Binary <code>whisper-cli</code>.</p></div>
-      <div class="f"><span class="ic">🦙</span><h4>Ollama — was ist das?</h4>
-        <p><b>Was:</b> ein schlanker lokaler Server, der Open-Source-Sprachmodelle auf dem eigenen Rechner
-           ausführt — quasi „Docker für LLMs". <b>Wie gehostet:</b> per Homebrew installiert, läuft als
-           Dienst und lauscht lokal auf <code>127.0.0.1:11434</code>. <b>Warum:</b> macht ein lokales LLM
-           über eine simple HTTP-API nutzbar — kein API-Key, keine Cloud, keine Kosten.</p></div>
-      <div class="f"><span class="ic">✨</span><h4>Qwen2.5 : 3B</h4>
-        <p><b>Was:</b> ein kompaktes 3-Milliarden-Parameter-Sprachmodell (Alibaba, Apache-2.0), läuft in
-           Ollama. <b>Größe:</b> ~1,9 GB. <b>Warum dieses:</b> klein genug für sofortige Politur ohne spürbare
-           Wartezeit, stark genug für „ähm raus, Satzzeichen rein" — gezähmt mit striktem System-Prompt.</p></div>
-      <div class="f"><span class="ic">💾</span><h4>Gesamt-Fußabdruck</h4>
-        <p>Einmalig <b>~3,4 GB</b> Modelle laden (Whisper + Qwen). Danach läuft alles <b>offline</b>,
-           dauerhaft kostenlos — und kein Wort verlässt je den Rechner.</p></div>
-    </div>
-
-    <div class="term">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-<pre><span class="dim"># Scripts/setup.sh — einmalig, idempotent, alles lokal</span>
-<span class="dim">$</span> brew install whisper-cpp            <span class="dim"># → Binary: whisper-cli</span>
-<span class="dim">$</span> curl -L …/ggml-large-v3-turbo.bin   <span class="dim"># ~1,5 GB → ~/.murmel/models</span>
-<span class="dim">$</span> brew install ollama                 <span class="dim"># lokaler LLM-Server</span>
-<span class="dim">$</span> ollama serve                        <span class="dim"># lauscht auf 127.0.0.1:11434</span>
-<span class="dim">$</span> ollama pull qwen2.5:3b              <span class="dim"># ~1,9 GB Politur-Modell</span>
-<span class="ok">=== Setup abgeschlossen — 100% lokal, 0 €/Monat ===</span></pre>
-    </div>
-  </div>
-</section>
-
-<!-- DEBUGGING -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Schritt 6 — Als es nicht lief</div>
-    <h2>Zwei echte Bugs. <span class="u">Systematisch gejagt, nicht geraten.</span></h2>
-    <p class="big">Bauen ist das eine. Zum Laufen bringen das andere. Statt blind zu
-      probieren, habe ich ein <b>Datei-Log an jede Pipeline-Stufe</b> gehängt — und damit
-      präzise gesehen, <i>wo</i> es bricht. So sahen die zwei Brocken aus:</p>
-
-    <div class="steps">
-      <div class="step"><div class="n">🐛</div><div>
-        <h3>Bug 1 — Das Recht verschwand bei jedem Rebuild</h3>
-        <p>Bedienungshilfen-Recht erteilt → trotzdem „kein Recht". <b>Root Cause:</b> macOS
-           bindet das Recht an die Code-Signatur. Jeder neue Build = neue Ad-hoc-Signatur =
-           neuer Hash → das erteilte Recht passt nicht mehr.</p>
-        <span class="tag">Fix: stabile selbst-signierte Identität (überlebt Rebuilds)</span>
-      </div></div>
-      <div class="step"><div class="n">🐛</div><div>
-        <h3>Bug 2 — Die KI-Politur halluzinierte</h3>
-        <p>Das kleine Politur-Modell kippte die ganze Wörterbuch-Liste in den Text und
-           <i>antwortete</i> auf „Hallo" wie ein Chatbot. <b>Root Cause:</b> zu schwacher
-           Prompt für ein 3B-Modell.</p>
-        <span class="tag">Fix: strikter System-Prompt + Halluzinations-Schutz + Standard „Roh"</span>
-      </div></div>
-    </div>
-
-    <div class="term">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-<pre><span class="dim"># Bug 1 — das Log zeigt den genauen Bruch:</span>
-HotkeyMonitor.start() <span class="am">AXIsProcessTrusted=false</span> → kein Recht → <span class="am">FEHLGESCHLAGEN</span>
-
-<span class="dim"># Bug 2 — Eingabe vs. was das Modell daraus machte:</span>
-Rohtext   = <span class="c">"Hallo!"</span>
-füge ein  = <span class="am">"Claude, Claude Code, Docker, … n8n, wie kann ich Ihnen helfen?"</span>  <span class="dim"># 🤦</span>
-
-<span class="dim"># Nach den Fixes — sauber:</span>
-Rohtext   = <span class="c">"Hallo!"</span>
-füge ein  = <span class="ok">"Hallo!"</span></pre>
-    </div>
-  </div>
-</section>
-
-<!-- LIVE-BEWEIS -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Es läuft</div>
-    <h2>Der Live-Beweis.</h2>
-    <p class="big">Ein echtes Diktat, ein Take, Deutsch und Englisch <b>mitten im Satz</b>
-      gemischt. Genau so eingefügt — Whisper <code>large-v3-turbo</code> in Bestform:</p>
-    <div class="term">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-<pre><span class="dim"># gesprochen → eingefügt (1:1):</span>
-<span class="ok">"Okay, das wird jetzt ein längerer Test für meine neue Murmel-App.
+<!-- 06 LIVE-BEWEIS -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">06</span> Es läuft</div>
+  <h2 class="rv" style="--d:.06s">Der Live-Beweis.</h2>
+  <p class="intro rv" style="--d:.1s">Ein echtes Diktat, ein Take, Deutsch und Englisch <b>mitten im Satz</b> gemischt — genau so eingefügt:</p>
+  <div class="term rv" style="--d:.14s">
+    <div class="bar"><i></i><i></i><i></i><span class="t">gesprochen → eingefügt (1:1)</span></div>
+<pre><span class="cl-g">"Okay, das wird jetzt ein längerer Test für meine neue Murmel-App.
  Ich möchte ausprobieren, ob das alles so klappt, wie es klappen sollte.
  Geh mal davon aus, dass wir sowohl prompten als auch colloquial,
  English as well, you should get everything."</span></pre>
+  </div>
+  <p class="intro rv" style="--d:.18s">Code-Switching DE↔EN, korrekte Zeichensetzung, sogar „Murmel-App" mit Bindestrich — fehlerfrei. Whisper <code>large-v3-turbo</code> in Bestform.</p>
+</section>
+
+<!-- 07 AUSBAU -->
+<section class="blk wrap">
+  <div class="lab rv"><span class="no">07</span> Ausbaustufe</div>
+  <h2 class="rv" style="--d:.06s">Vom Diktat zum <em>Werkzeug</em>.</h2>
+  <p class="intro rv" style="--d:.1s">Ein natives, glasiges Fenster (SwiftUI-Materials) — bedienbar wie Wispr Flow, nur selbst gebaut.</p>
+  <div class="cards">
+    <div class="card rv" style="--d:.12s"><div class="ic">verlauf</div><h4>Verlauf</h4><p>Alle Diktate durchsuchbar, je Eintrag „erneut einfügen".</p></div>
+    <div class="card rv" style="--d:.15s"><div class="ic">modi · editierbar</div><h4>Stil-Modi</h4><p>Roh · E-Mail · Code · Claude-Prompt · Brainstorming — aktiven Modus wählen und die Formulierung pro Modus selbst anpassen.</p></div>
+    <div class="card rv" style="--d:.18s"><div class="ic">übersetzer</div><h4>Diktat-Übersetzer</h4><p>Modi „→ Englisch" / „→ Deutsch": Deutsch sprechen, übersetzt eingefügt — lokal via Ollama/Qwen.</p></div>
+    <div class="card rv" style="--d:.21s"><div class="ic">wörterbuch</div><h4>Wörterbuch-Editor</h4><p>Fachbegriffe selbst pflegen (gesprochen → korrekt), speichert sofort.</p></div>
+    <div class="card rv" style="--d:.24s"><div class="ic">analyse</div><h4>Sprachanalyse</h4><p>Wie du sprichst: Wörter pro Diktat & Satz, Füllwörter, Top-Begriffe + Lern-Tipps.</p></div>
+    <div class="card rv" style="--d:.27s"><div class="ic">offline</div><h4>100 % lokal</h4><p>Mikrofon, Erkennung, Politur, Übersetzung — kein Byte verlässt den Rechner.</p></div>
+  </div>
+</section>
+
+<!-- 08 BEWEIST -->
+<section class="blk wrap">
+  <div class="proof rv">
+    <div class="lab"><span class="no">08</span> Was es beweist</div>
+    <h2>Ich nutze KI nicht nur — ich baue mir <em>eigene Software.</em></h2>
+    <p class="intro">Eine native macOS-App ohne Code-Hintergrund, end-to-end: Audio, Spracherkennung, lokales LLM, globaler Hotkey, Datenbank, Code-Signierung. Geplant, orchestriert, debuggt, ausgeliefert — als Open-Source zum Klonen.</p>
+    <div class="kpis">
+      <div class="kpi"><div class="v">~1.400</div><div class="l">Zeilen Swift</div></div>
+      <div class="kpi"><div class="v">8</div><div class="l">Agents · parallel</div></div>
+      <div class="kpi"><div class="v">1 Tag</div><div class="l">von Idee zu Release</div></div>
+      <div class="kpi"><div class="v">0 €</div><div class="l">laufende Kosten</div></div>
     </div>
-    <p class="big" style="margin-top:18px">Code-Switching DE↔EN, korrekte Zeichensetzung,
-      sogar „Murmel-App" mit Bindestrich — fehlerfrei.</p>
   </div>
 </section>
 
-<!-- LESSON -->
-<section>
-  <div class="wrap">
-    <div class="kicker">// Was ich mitnehme</div>
-    <h2>Das Werkzeug baut sich selbst —<br><span class="u">wenn du weißt, was du willst.</span></h2>
-    <p class="big">Ich habe keine 1.400 Zeilen Swift von Hand getippt. Ich habe entschieden,
-      strukturiert, verifiziert und geleitet. Die eigentliche Arbeit war Klarheit:
-      saubere Verträge, isolierte Bausteine, echte Tests statt Behauptungen.
-      Genau das ist die Fähigkeit, die das Bootcamp trainiert.</p>
+<footer class="foot wrap">
+  <div class="ready rv">Verfügbar ab 01.08.2026</div>
+  <h2 class="rv" style="--d:.06s">Software bauen — auch für <em>euer</em> Team.</h2>
+  <div class="contacts rv" style="--d:.12s">
+    <a href="mailto:a.heyers@gmail.com">a.heyers@gmail.com <span>Mail →</span></a>
+    <a href="https://github.com/alexheyers/murmel" target="_blank" rel="noopener">github.com/alexheyers/murmel <span>Repo →</span></a>
+    <a href="https://murmel.vercel.app" target="_blank" rel="noopener">murmel.vercel.app <span>Live →</span></a>
+    <a href="https://alexander-heyers-portfolio.vercel.app/">← Zum Portfolio <span>Home →</span></a>
   </div>
-</section>
-
-<footer>
-  <div class="wrap">
-    <div class="big">🎙️ Murmel</div>
-    <p>Gebaut von Alex Heyers · Vibe Coding Bootcamp · lokal, privat, eigenes Werkzeug.</p>
-    <p style="margin-top:8px"><code>github.com/alexheyers/murmel</code> · privat</p>
-  </div>
+  <div class="copyline">Alex Heyers · Mosbach · Zwischen Tresen und Terminal</div>
 </footer>
 
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var rvs = document.querySelectorAll('.rv');
+  if(reduce){ rvs.forEach(function(e){ e.classList.add('in'); }); return; }
+  if('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, {threshold:.14, rootMargin:'0px 0px -8% 0px'});
+    rvs.forEach(function(e){ io.observe(e); });
+  } else { rvs.forEach(function(e){ e.classList.add('in'); }); }
+})();
+</script>
 </body>
 </html>
