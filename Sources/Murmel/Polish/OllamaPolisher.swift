@@ -41,75 +41,92 @@ final class OllamaPolisher: Polishing {
 
     func polish(_ text: String, style: DictationStyle, vocabularyHint: [String]) async -> String {
         // 1) Stil ".raw" → gar nicht polieren, sofort den Rohtext zurückgeben.
-        //    Kein Netzwerkaufruf, keine Latenz.
         guard style.usesPolish else { return text }
 
         // 2) Leerer/nur-Whitespace-Text → nichts zu tun.
         let trimmedInput = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedInput.isEmpty else { return text }
 
-        // 3) Prompt bauen und Anfrage senden. JEDER Fehler → Fallback auf den Original-Text.
+        // 3) Chat-Anfrage senden. JEDER Fehler → Fallback auf den Original-Text.
         do {
-            let prompt = buildPrompt(text: text, style: style, vocabularyHint: vocabularyHint)
-            let request = try makeRequest(prompt: prompt)
+            let system = buildSystemPrompt(style: style, vocabularyHint: vocabularyHint)
+            let request = try makeChatRequest(system: system, userText: trimmedInput)
 
             let (data, response) = try await session.data(for: request)
 
-            // HTTP-Status prüfen (z. B. 404 falsches Modell, 500 Server-Fehler) → Fallback.
             if let http = response as? HTTPURLResponse,
                !(200...299).contains(http.statusCode) {
+                Log.line("Polisher: HTTP \(http.statusCode) → Fallback auf Rohtext")
                 return text
             }
 
-            // Antwort parsen und das Feld "response" extrahieren.
-            guard let polished = parseResponse(data) else { return text }
+            guard let polished = parseResponse(data) else {
+                Log.line("Polisher: Antwort nicht lesbar → Fallback")
+                return text
+            }
 
-            // Ergebnis trimmen; bei leerem Ergebnis Fallback auf Original.
             let cleaned = polished.trimmingCharacters(in: .whitespacesAndNewlines)
-            return cleaned.isEmpty ? text : cleaned
+            if cleaned.isEmpty {
+                return text
+            }
+
+            // Halluzinations-Schutz: Ein kleines Modell neigt dazu, zu „antworten"
+            // oder Listen anzuhängen. Wird die Politur deutlich länger als das
+            // Original, ist das fast sicher Mist → wir nehmen den Rohtext.
+            let limit = max(120, trimmedInput.count * 4)
+            if cleaned.count > limit {
+                Log.line("Polisher: Ausgabe zu lang (\(cleaned.count) > \(limit)) → Fallback auf Rohtext")
+                return trimmedInput
+            }
+
+            return cleaned
         } catch {
-            // Netzwerkfehler, Timeout, Cancel, JSON-Fehler — egal was: Original zurück.
             return text
         }
     }
 
-    // MARK: - Prompt-Aufbau
+    // MARK: - System-Prompt
 
-    /// Setzt den vollständigen Prompt aus Stil-Instruktion, festen Regeln,
-    /// optionalem Vokabular-Hinweis und dem zu überarbeitenden Text zusammen.
-    private func buildPrompt(text: String, style: DictationStyle, vocabularyHint: [String]) -> String {
-        var parts: [String] = []
+    /// Strikter System-Prompt: macht aus dem LLM ein reines Korrektur-Werkzeug,
+    /// keinen Chatbot. Verhindert, dass das Modell auf den Inhalt antwortet
+    /// oder die Vokabular-Liste in den Text kippt.
+    private func buildSystemPrompt(style: DictationStyle, vocabularyHint: [String]) -> String {
+        var lines: [String] = [
+            "Du bist ein striktes Korrektur-Werkzeug für diktierten Text — KEIN Chatbot.",
+            "Du erhältst rohen, per Spracherkennung erzeugten Text. Deine EINZIGE Aufgabe:",
+            "gib eine bereinigte Fassung GENAU DIESES Textes zurück (Rechtschreibung,",
+            "Zeichensetzung, Groß-/Kleinschreibung).",
+            "",
+            "Strikte Regeln:",
+            "- Antworte NIEMALS auf den Inhalt. Stelle keine Rückfragen. Begrüße nicht.",
+            "- Erfinde NICHTS. Füge keine Wörter, Sätze, Listen oder Begriffe hinzu, die nicht vorkommen.",
+            "- Behalte die Aussage und ungefähre Länge bei. Kürze den Sinn nicht weg.",
+            "- Wenn es nichts zu verbessern gibt, gib den Text unverändert zurück.",
+            "- Gib NUR den bereinigten Text aus — ohne Anführungszeichen, ohne Vor- oder Nachwort."
+        ]
 
-        // a) Stil-spezifische Instruktion (z. B. "Formuliere als E-Mail …").
         let instruction = style.polishInstruction.trimmingCharacters(in: .whitespacesAndNewlines)
         if !instruction.isEmpty {
-            parts.append(instruction)
+            lines.append("- Stil: \(instruction)")
         }
 
-        // b) Feste Ausgabe-Regel, damit das Modell NUR den überarbeiteten Text liefert.
-        parts.append("Gib AUSSCHLIESSLICH den überarbeiteten Text zurück, ohne Einleitung, ohne Anführungszeichen, ohne Erklärungen.")
-
-        // c) Optionaler Vokabular-Hinweis: Fachbegriffe exakt so schreiben.
         let hints = vocabularyHint
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         if !hints.isEmpty {
-            parts.append("Schreibe folgende Fachbegriffe exakt so: \(hints.joined(separator: ", ")).")
+            lines.append("- Falls (und NUR falls) einer dieser Fachbegriffe im Text vorkommt, schreibe ihn korrekt: "
+                         + hints.joined(separator: ", ")
+                         + ". Diese Begriffe NIEMALS hinzufügen, wenn sie nicht vorkommen.")
         }
 
-        // d) Der eigentliche zu überarbeitende Text, klar abgesetzt.
-        parts.append("")
-        parts.append("Text:")
-        parts.append(text)
-
-        return parts.joined(separator: "\n")
+        return lines.joined(separator: "\n")
     }
 
-    // MARK: - HTTP-Request
+    // MARK: - HTTP-Request (Ollama Chat-API)
 
-    /// Baut den POST-Request an "<baseURL>/api/generate" mit JSON-Body.
-    private func makeRequest(prompt: String) throws -> URLRequest {
-        guard let url = URL(string: baseURL + "/api/generate") else {
+    /// Baut den POST-Request an "<baseURL>/api/chat" mit System- und User-Nachricht.
+    private func makeChatRequest(system: String, userText: String) throws -> URLRequest {
+        guard let url = URL(string: baseURL + "/api/chat") else {
             throw URLError(.badURL)
         }
 
@@ -118,12 +135,14 @@ final class OllamaPolisher: Polishing {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 20
 
-        // Ollama-Body: kein Streaming, niedrige Temperatur für stabile Politur.
         let body: [String: Any] = [
             "model": model,
-            "prompt": prompt,
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": userText]
+            ],
             "stream": false,
-            "options": ["temperature": 0.2]
+            "options": ["temperature": 0.1]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
 
@@ -132,15 +151,15 @@ final class OllamaPolisher: Polishing {
 
     // MARK: - Antwort-Parsing
 
-    /// Liest robust das Feld "response" (String) aus der Ollama-Antwort.
-    /// Gibt nil zurück, wenn das JSON nicht passt oder "response" fehlt.
+    /// Liest den Inhalt aus der Ollama-Chat-Antwort (`message.content`).
     private func parseResponse(_ data: Data) -> String? {
         guard
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let response = json["response"] as? String
+            let message = json["message"] as? [String: Any],
+            let content = message["content"] as? String
         else {
             return nil
         }
-        return response
+        return content
     }
 }

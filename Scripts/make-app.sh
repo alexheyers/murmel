@@ -34,8 +34,16 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
 echo "▶︎ Erweiterte Attribute strippen (verhindert codesign ‚resource fork'-Fehler)…"
 xattr -cr "$APP"
 
-echo "▶︎ Ad-hoc-Signatur…"
-codesign --force --deep --sign - "$APP"
+# Stabile Signatur-Identität bevorzugen (überlebt Rebuilds → macOS-Rechte bleiben erhalten).
+# Fällt auf Ad-hoc zurück, falls das Zertifikat fehlt (dann muss das Recht je Build neu erteilt werden).
+SIGN_ID="Murmel Code Signing"
+if security find-certificate -c "$SIGN_ID" >/dev/null 2>&1; then
+    echo "▶︎ Signatur mit stabiler Identität ‚$SIGN_ID'…"
+    codesign --force --deep --sign "$SIGN_ID" "$APP"
+else
+    echo "▶︎ Ad-hoc-Signatur (kein stabiles Zertifikat gefunden — siehe Scripts/make-cert.sh)…"
+    codesign --force --deep --sign - "$APP"
+fi
 
 echo ""
 echo "✓ Fertig: $APP"

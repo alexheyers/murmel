@@ -55,6 +55,7 @@ final class AppCoordinator: ObservableObject {
 
     func startHotkey() {
         let ok = hotkey.start()
+        Log.line("AppCoordinator.startHotkey() → \(ok ? "aktiv" : "FEHLGESCHLAGEN")")
         if !ok {
             phase = .error("Bedienungshilfen-Recht fehlt — bitte in den Systemeinstellungen erlauben.")
             lastError = phase == .idle ? nil : "Bedienungshilfen-Recht fehlt."
@@ -78,10 +79,15 @@ final class AppCoordinator: ObservableObject {
     // MARK: - Push-to-talk
 
     private func handlePress() {
-        guard phase == .idle || isErrorPhase else { return }
+        Log.line("handlePress() — phase=\(String(describing: phase))")
+        guard phase == .idle || isErrorPhase else {
+            Log.line("handlePress() ignoriert (phase nicht idle)")
+            return
+        }
         do {
             try recorder.startRecording()
             phase = .recording
+            Log.line("Aufnahme gestartet")
             Sounds.start()
         } catch {
             phase = .error(error.localizedDescription)
@@ -92,9 +98,11 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func handleRelease() {
+        Log.line("handleRelease() — phase=\(String(describing: phase))")
         guard phase == .recording else { return }
         Sounds.stop()
         let wav = recorder.stopRecording()
+        Log.line("Aufnahme gestoppt — wav=\(wav?.lastPathComponent ?? "nil")")
         phase = .transcribing
         Task { await runPipeline(wav: wav) }
     }
@@ -109,7 +117,9 @@ final class AppCoordinator: ObservableObject {
         }
         do {
             // 1. Transkription
+            Log.line("Pipeline: transkribiere \(wav.lastPathComponent)…")
             let raw = try await transcriber.transcribe(wav)
+            Log.line("Pipeline: Rohtext = \"\(raw)\"")
             guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 cleanup(wav)
                 phase = .idle
@@ -149,6 +159,7 @@ final class AppCoordinator: ObservableObject {
 
             // 6. Einfügen
             phase = .inserting
+            Log.line("Pipeline: füge ein = \"\(trimmed)\"")
             inserter.insert(trimmed)
             Sounds.done()
 
@@ -156,6 +167,7 @@ final class AppCoordinator: ObservableObject {
             phase = .idle
         } catch {
             // Audio NICHT löschen — Diktat geht nicht verloren.
+            Log.line("Pipeline FEHLER: \(error.localizedDescription)")
             phase = .error(error.localizedDescription)
             lastError = error.localizedDescription
             Sounds.fail()

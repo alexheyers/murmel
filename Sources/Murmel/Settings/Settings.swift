@@ -54,8 +54,8 @@ final class Settings: ObservableObject {
     // MARK: Init
 
     private init() {
-        let styleRaw = defaults.string(forKey: Keys.style) ?? DictationStyle.claudePrompt.rawValue
-        self.currentStyle = DictationStyle(rawValue: styleRaw) ?? .claudePrompt
+        let styleRaw = defaults.string(forKey: Keys.style) ?? DictationStyle.raw.rawValue
+        self.currentStyle = DictationStyle(rawValue: styleRaw) ?? .raw
 
         let triggerRaw = defaults.string(forKey: Keys.trigger) ?? HotkeyTrigger.fn.rawValue
         self.hotkeyTrigger = HotkeyTrigger(rawValue: triggerRaw) ?? .fn

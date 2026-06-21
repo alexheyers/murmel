@@ -65,7 +65,9 @@ final class HotkeyMonitor: HotkeyMonitoring {
         }
 
         // Ohne Bedienungshilfen-Recht kann der Tap keine globalen Events lesen.
+        Log.line("HotkeyMonitor.start() aufgerufen — AXIsProcessTrusted=\(AXIsProcessTrusted()), trigger=\(trigger.rawValue)")
         guard AXIsProcessTrusted() else {
+            Log.line("HotkeyMonitor.start() FEHLER: kein Bedienungshilfen-Recht")
             return false
         }
 
@@ -85,6 +87,7 @@ final class HotkeyMonitor: HotkeyMonitoring {
             userInfo: refcon
         ) else {
             // Tap-Erstellung gescheitert (z.B. Recht zwischenzeitlich entzogen).
+            Log.line("HotkeyMonitor.start() FEHLER: CGEvent.tapCreate gab nil zurück")
             return false
         }
 
@@ -97,6 +100,7 @@ final class HotkeyMonitor: HotkeyMonitoring {
         self.runLoopSource = source
         self.isPressed = false
 
+        Log.line("HotkeyMonitor.start() OK — Event-Tap aktiv")
         return true
     }
 
@@ -120,6 +124,8 @@ final class HotkeyMonitor: HotkeyMonitoring {
     /// Läuft auf dem RunLoop-Thread; die Callbacks werden daher auf Main dispatcht.
     fileprivate func handle(event: CGEvent) {
         let isDown: Bool
+        let keycode = event.getIntegerValueField(.keyboardEventKeycode)
+        Log.line("flagsChanged: keycode=\(keycode) flags=\(event.flags.rawValue) fn=\(event.flags.contains(.maskSecondaryFn)) alt=\(event.flags.contains(.maskAlternate)) trigger=\(trigger.rawValue)")
 
         switch trigger {
         case .fn:
@@ -128,7 +134,6 @@ final class HotkeyMonitor: HotkeyMonitoring {
 
         case .rightOption:
             // Nur die rechte ⌥ reagiert (Keycode 61). Die linke ⌥ (58) wird ignoriert.
-            let keycode = event.getIntegerValueField(.keyboardEventKeycode)
             guard keycode == Self.rightOptionKeycode else {
                 return
             }
