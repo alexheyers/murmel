@@ -17,6 +17,7 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     case email
     case codeComment
     case claudePrompt
+    case brainstorm
 
     var id: String { rawValue }
 
@@ -27,13 +28,25 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .email:        return "E-Mail"
         case .codeComment:  return "Code-Kommentar"
         case .claudePrompt: return "Claude-Prompt"
+        case .brainstorm:   return "Brainstorming"
+        }
+    }
+
+    /// Kurze Beschreibung für die UI.
+    var summary: String {
+        switch self {
+        case .raw:          return "Genau das gesprochene Wort, kein Modell dazwischen."
+        case .email:        return "Höflicher, sauberer E-Mail-Fließtext."
+        case .codeComment:  return "Knapper, technischer Kommentar- oder Commit-Text."
+        case .claudePrompt: return "Klarer, strukturierter Prompt für einen KI-Assistenten."
+        case .brainstorm:   return "Lose Gedanken zu klaren Stichpunkten geordnet."
         }
     }
 
     /// Ob für diesen Stil überhaupt poliert wird.
     var usesPolish: Bool { self != .raw }
 
-    /// Instruktion an das lokale LLM. Wird vom Polisher in den Prompt eingebaut.
+    /// Standard-Instruktion an das lokale LLM (editierbar über die Einstellungen).
     var polishInstruction: String {
         switch self {
         case .raw:
@@ -47,6 +60,9 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .claudePrompt:
             return "Formuliere den Text als klaren, gut strukturierten Prompt/Anweisung an "
                  + "einen KI-Assistenten. Behalte technische Begriffe exakt bei."
+        case .brainstorm:
+            return "Ordne die losen Gedanken zu klaren, knappen Stichpunkten (Bullet-Liste). "
+                 + "Behalte jede Idee, erfinde nichts dazu, gruppiere Zusammengehöriges."
         }
     }
 }

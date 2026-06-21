@@ -35,8 +35,9 @@ protocol Polishing: AnyObject {
     /// - Parameters:
     ///   - text: Rohtext (nach Sprachbefehlen & Wörterbuch).
     ///   - style: gewählter Stil-Modus (`.raw` → keine Politur, gibt text unverändert zurück).
+    ///   - instruction: die (ggf. vom Nutzer angepasste) Stil-Instruktion für das LLM.
     ///   - vocabularyHint: Begriffe aus dem Wörterbuch (als Schreibhilfe in den Prompt).
-    func polish(_ text: String, style: DictationStyle, vocabularyHint: [String]) async -> String
+    func polish(_ text: String, style: DictationStyle, instruction: String, vocabularyHint: [String]) async -> String
 }
 
 /// Fügt Text ins aktive Fenster ein (Zwischenablage + ⌘V).

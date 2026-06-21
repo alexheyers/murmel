@@ -145,6 +145,7 @@ final class AppCoordinator: ObservableObject {
             let final = await polisher.polish(
                 corrected,
                 style: settings.currentStyle,
+                instruction: settings.instruction(for: settings.currentStyle),
                 vocabularyHint: vocabulary.terms
             )
             let trimmed = final.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -60,7 +60,7 @@ struct OllamaPolisherTests {
     func rawReturnsInput() async {
         let polisher = OllamaPolisher(baseURL: "http://127.0.0.1:1", model: "egal")
         let input = "unveränderter Text"
-        let out = await polisher.polish(input, style: .raw, vocabularyHint: [])
+        let out = await polisher.polish(input, style: .raw, instruction: "", vocabularyHint: [])
         #expect(out == input)
     }
 
@@ -68,7 +68,7 @@ struct OllamaPolisherTests {
     func fallbackOnUnreachable() async {
         let polisher = OllamaPolisher(baseURL: "http://127.0.0.1:1", model: "egal")
         let input = "bitte nicht verlieren"
-        let out = await polisher.polish(input, style: .email, vocabularyHint: [])
+        let out = await polisher.polish(input, style: .email, instruction: DictationStyle.email.polishInstruction, vocabularyHint: [])
         #expect(out == input)
     }
 }

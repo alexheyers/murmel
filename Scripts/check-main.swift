@@ -27,11 +27,19 @@ check(DictationStyle.email.usesPolish && DictationStyle.claudePrompt.usesPolish,
 check(DictationStyle.allCases.allSatisfy { !$0.displayName.isEmpty }, "alle Stile haben Anzeigenamen")
 
 let polisher = OllamaPolisher(baseURL: "http://127.0.0.1:1", model: "egal")
-let raw = await polisher.polish("unverändert", style: .raw, vocabularyHint: [])
+let raw = await polisher.polish("unverändert", style: .raw, instruction: "", vocabularyHint: [])
 check(raw == "unverändert", "Roh-Stil: kein Netzwerk, Text 1:1")
 
-let fb = await polisher.polish("bitte nicht verlieren", style: .email, vocabularyHint: [])
+let fb = await polisher.polish("bitte nicht verlieren", style: .email, instruction: DictationStyle.email.polishInstruction, vocabularyHint: [])
 check(fb == "bitte nicht verlieren", "Ollama unerreichbar → Fallback auf Originaltext")
+
+let entries = [
+    HistoryEntry(id: 1, timestamp: Date(), raw: "ähm das ist ein test ähm wirklich", final: "x", style: .raw),
+    HistoryEntry(id: 2, timestamp: Date(), raw: "noch ein satz mit vielen wörtern hier drin", final: "x", style: .raw)
+]
+let an = SpeechAnalyzer.analyze(entries)
+check(an.dictations == 2, "Analyse: 2 Diktate erkannt")
+check(an.fillers.first?.word == "ähm", "Analyse: Füllwort ähm erkannt")
 
 print(failures == 0 ? "\nALLE CHECKS GRÜN" : "\n\(failures) CHECK(S) FEHLGESCHLAGEN")
 exit(failures == 0 ? 0 : 1)

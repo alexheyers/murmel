@@ -25,16 +25,18 @@ struct MenuBarView: View {
                 openWindow(id: "murmel-main")
                 NSApp.activate(ignoringOtherApps: true)
             } label: {
-                Label("Verlauf & Wörterbuch", systemImage: "slider.horizontal.3")
+                Label("Verlauf · Modi · Wörterbuch · Analyse", systemImage: "square.grid.2x2")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .controlSize(.large)
 
             Divider()
 
             footer
         }
-        .padding(14)
-        .frame(width: 300)
+        .padding(16)
+        .frame(width: 312)
+        .background(.ultraThinMaterial)
         .onChange(of: settings.hotkeyTrigger) { _, newValue in
             coordinator.updateTrigger(newValue)
         }
@@ -43,12 +45,18 @@ struct MenuBarView: View {
     // MARK: Sections
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: statusSymbol)
-                .foregroundStyle(statusColor)
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(statusColor.opacity(0.16))
+                    .frame(width: 36, height: 36)
+                Image(systemName: statusSymbol)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(statusColor)
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text("Murmel").font(.headline)
-                Text(statusText).font(.caption).foregroundStyle(.secondary)
+                Text(statusText).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer()
         }

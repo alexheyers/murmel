@@ -67,6 +67,36 @@ final class Settings: ObservableObject {
         }
     }
 
+    // MARK: Pro-Modus-Instruktion (editierbar)
+
+    /// Effektive Instruktion für einen Stil: eigene Anpassung, sonst Default.
+    func instruction(for style: DictationStyle) -> String {
+        defaults.string(forKey: Keys.instrPrefix + style.rawValue) ?? style.polishInstruction
+    }
+
+    /// Setzt eine eigene Instruktion. Leer oder == Default → Override entfernen.
+    func setInstruction(_ text: String, for style: DictationStyle) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = Keys.instrPrefix + style.rawValue
+        if t.isEmpty || t == style.polishInstruction {
+            defaults.removeObject(forKey: key)
+        } else {
+            defaults.set(t, forKey: key)
+        }
+        objectWillChange.send()
+    }
+
+    /// Auf den Default zurücksetzen.
+    func resetInstruction(for style: DictationStyle) {
+        defaults.removeObject(forKey: Keys.instrPrefix + style.rawValue)
+        objectWillChange.send()
+    }
+
+    /// Ob für diesen Stil eine eigene Instruktion gesetzt ist.
+    func hasCustomInstruction(for style: DictationStyle) -> Bool {
+        defaults.string(forKey: Keys.instrPrefix + style.rawValue) != nil
+    }
+
     // MARK: Login-Item
 
     private func applyLaunchAtLogin(_ enabled: Bool) {
@@ -107,5 +137,6 @@ final class Settings: ObservableObject {
         static let ollamaURL = "murmel.ollamaURL"
         static let ollamaModel = "murmel.ollamaModel"
         static let language = "murmel.language"
+        static let instrPrefix = "murmel.instr."
     }
 }

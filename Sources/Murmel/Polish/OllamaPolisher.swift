@@ -39,7 +39,7 @@ final class OllamaPolisher: Polishing {
 
     // MARK: - Polishing
 
-    func polish(_ text: String, style: DictationStyle, vocabularyHint: [String]) async -> String {
+    func polish(_ text: String, style: DictationStyle, instruction: String, vocabularyHint: [String]) async -> String {
         // 1) Stil ".raw" → gar nicht polieren, sofort den Rohtext zurückgeben.
         guard style.usesPolish else { return text }
 
@@ -49,7 +49,7 @@ final class OllamaPolisher: Polishing {
 
         // 3) Chat-Anfrage senden. JEDER Fehler → Fallback auf den Original-Text.
         do {
-            let system = buildSystemPrompt(style: style, vocabularyHint: vocabularyHint)
+            let system = buildSystemPrompt(instruction: instruction, vocabularyHint: vocabularyHint)
             let request = try makeChatRequest(system: system, userText: trimmedInput)
 
             let (data, response) = try await session.data(for: request)
@@ -90,7 +90,7 @@ final class OllamaPolisher: Polishing {
     /// Strikter System-Prompt: macht aus dem LLM ein reines Korrektur-Werkzeug,
     /// keinen Chatbot. Verhindert, dass das Modell auf den Inhalt antwortet
     /// oder die Vokabular-Liste in den Text kippt.
-    private func buildSystemPrompt(style: DictationStyle, vocabularyHint: [String]) -> String {
+    private func buildSystemPrompt(instruction: String, vocabularyHint: [String]) -> String {
         var lines: [String] = [
             "Du bist ein striktes Korrektur-Werkzeug für diktierten Text — KEIN Chatbot.",
             "Du erhältst rohen, per Spracherkennung erzeugten Text. Deine EINZIGE Aufgabe:",
@@ -105,9 +105,9 @@ final class OllamaPolisher: Polishing {
             "- Gib NUR den bereinigten Text aus — ohne Anführungszeichen, ohne Vor- oder Nachwort."
         ]
 
-        let instruction = style.polishInstruction.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !instruction.isEmpty {
-            lines.append("- Stil: \(instruction)")
+        let styleInstruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !styleInstruction.isEmpty {
+            lines.append("- Stil: \(styleInstruction)")
         }
 
         let hints = vocabularyHint
