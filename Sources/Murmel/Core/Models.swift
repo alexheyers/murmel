@@ -18,6 +18,8 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     case codeComment
     case claudePrompt
     case brainstorm
+    case translateEN
+    case translateDE
 
     var id: String { rawValue }
 
@@ -29,6 +31,8 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .codeComment:  return "Code-Kommentar"
         case .claudePrompt: return "Claude-Prompt"
         case .brainstorm:   return "Brainstorming"
+        case .translateEN:  return "→ Englisch"
+        case .translateDE:  return "→ Deutsch"
         }
     }
 
@@ -40,10 +44,24 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .codeComment:  return "Knapper, technischer Kommentar- oder Commit-Text."
         case .claudePrompt: return "Klarer, strukturierter Prompt für einen KI-Assistenten."
         case .brainstorm:   return "Lose Gedanken zu klaren Stichpunkten geordnet."
+        case .translateEN:  return "Sprich Deutsch — es wird ins Englische übersetzt."
+        case .translateDE:  return "Sprich beliebig — es wird ins Deutsche übersetzt."
         }
     }
 
-    /// Ob für diesen Stil überhaupt poliert wird.
+    /// Übersetzungs-Modus? Dann nutzt der Polisher einen Übersetzer-Prompt statt Korrektur.
+    var isTranslation: Bool { self == .translateEN || self == .translateDE }
+
+    /// Zielsprache bei Übersetzungs-Modi.
+    var targetLanguageName: String? {
+        switch self {
+        case .translateEN: return "Englisch"
+        case .translateDE: return "Deutsch"
+        default:           return nil
+        }
+    }
+
+    /// Ob für diesen Stil überhaupt poliert/übersetzt wird.
     var usesPolish: Bool { self != .raw }
 
     /// Standard-Instruktion an das lokale LLM (editierbar über die Einstellungen).
@@ -63,6 +81,10 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .brainstorm:
             return "Ordne die losen Gedanken zu klaren, knappen Stichpunkten (Bullet-Liste). "
                  + "Behalte jede Idee, erfinde nichts dazu, gruppiere Zusammengehöriges."
+        case .translateEN:
+            return "Natürliches, idiomatisches Englisch."
+        case .translateDE:
+            return "Natürliches, idiomatisches Deutsch."
         }
     }
 }

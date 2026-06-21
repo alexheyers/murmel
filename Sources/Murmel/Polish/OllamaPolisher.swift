@@ -49,7 +49,12 @@ final class OllamaPolisher: Polishing {
 
         // 3) Chat-Anfrage senden. JEDER Fehler → Fallback auf den Original-Text.
         do {
-            let system = buildSystemPrompt(instruction: instruction, vocabularyHint: vocabularyHint)
+            let system: String
+            if style.isTranslation, let target = style.targetLanguageName {
+                system = buildTranslationPrompt(target: target, nuance: instruction, vocabularyHint: vocabularyHint)
+            } else {
+                system = buildSystemPrompt(instruction: instruction, vocabularyHint: vocabularyHint)
+            }
             let request = try makeChatRequest(system: system, userText: trimmedInput)
 
             let (data, response) = try await session.data(for: request)
@@ -119,6 +124,30 @@ final class OllamaPolisher: Polishing {
                          + ". Diese Begriffe NIEMALS hinzufügen, wenn sie nicht vorkommen.")
         }
 
+        return lines.joined(separator: "\n")
+    }
+
+    /// System-Prompt für die Übersetzungs-Modi. Ignoriert die „Sprache beibehalten"-Regel
+    /// und übersetzt stattdessen in die Zielsprache.
+    private func buildTranslationPrompt(target: String, nuance: String, vocabularyHint: [String]) -> String {
+        var lines: [String] = [
+            "Du bist ein präziser, muttersprachlicher Übersetzer.",
+            "Übersetze den folgenden diktierten Text natürlich und idiomatisch ins \(target).",
+            "",
+            "Strikte Regeln:",
+            "- Gib AUSSCHLIESSLICH die Übersetzung zurück — kein Original, keine Erklärung, keine Anführungszeichen.",
+            "- Behalte Sinn, Ton und Eigennamen exakt. Erfinde nichts dazu, lasse nichts weg.",
+            "- Antworte NICHT auf den Inhalt — nur übersetzen."
+        ]
+        let n = nuance.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !n.isEmpty { lines.append("- Stil: \(n)") }
+
+        let hints = vocabularyHint
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if !hints.isEmpty {
+            lines.append("- Diese Fachbegriffe exakt beibehalten: " + hints.joined(separator: ", ") + ".")
+        }
         return lines.joined(separator: "\n")
     }
 
