@@ -18,7 +18,8 @@ final class AppCoordinator: ObservableObject {
     private let polisher: Polishing
     private let inserter: TextInserting
     private let hotkey: HotkeyMonitoring
-    private let vocabulary: VocabularyCorrecting
+    /// Konkreter Store (ObservableObject) — wird auch von der Wörterbuch-UI beobachtet.
+    let vocabulary: VocabularyStore
     private let history: HistoryStoring
     private let voiceCommands: VoiceCommandProcessing
 

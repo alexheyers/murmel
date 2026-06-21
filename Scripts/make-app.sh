@@ -27,12 +27,16 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
 
-cp "$BIN_PATH" "$APP/Contents/MacOS/$BIN_NAME"
+# ditto statt cp: kopiert ohne Resource-Forks/Quarantäne (sauberer fürs Signieren).
+/usr/bin/ditto --norsrc --noextattr --noqtn "$BIN_PATH" "$APP/Contents/MacOS/$BIN_NAME"
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-echo "▶︎ Erweiterte Attribute strippen (verhindert codesign ‚resource fork'-Fehler)…"
-xattr -cr "$APP"
+echo "▶︎ Erweiterte Attribute strippen (verhindert codesign ‚detritus'-Fehler)…"
+xattr -cr "$APP" 2>/dev/null || true
+# macOS Sequoia/Tahoe: geschütztes com.apple.provenance entfernen, sonst scheitert codesign.
+xattr -rd com.apple.provenance "$APP" 2>/dev/null || true
+find "$APP" -name '._*' -delete 2>/dev/null || true
 
 # Stabile Signatur-Identität bevorzugen (überlebt Rebuilds → macOS-Rechte bleiben erhalten).
 # Fällt auf Ad-hoc zurück, falls das Zertifikat fehlt (dann muss das Recht je Build neu erteilt werden).

@@ -4,9 +4,7 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject private var settings = Settings.shared
-
-    @State private var historyQuery = ""
-    @State private var history: [HistoryEntry] = []
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -23,15 +21,20 @@ struct MenuBarView: View {
 
             Divider()
 
-            historySection
+            Button {
+                openWindow(id: "murmel-main")
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Label("Verlauf & Wörterbuch", systemImage: "slider.horizontal.3")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             Divider()
 
             footer
         }
         .padding(14)
-        .frame(width: 320)
-        .onAppear(perform: refreshHistory)
+        .frame(width: 300)
         .onChange(of: settings.hotkeyTrigger) { _, newValue in
             coordinator.updateTrigger(newValue)
         }
@@ -69,37 +72,6 @@ struct MenuBarView: View {
         .pickerStyle(.menu)
     }
 
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Verlauf").font(.subheadline).bold()
-            TextField("Suchen…", text: $historyQuery)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: historyQuery) { _, _ in refreshHistory() }
-
-            if history.isEmpty {
-                Text("Noch keine Diktate.")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(history) { entry in
-                            Button {
-                                coordinator.reinsert(entry)
-                            } label: {
-                                Text(entry.final)
-                                    .lineLimit(2)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Erneut einfügen")
-                        }
-                    }
-                }
-                .frame(maxHeight: 140)
-            }
-        }
-    }
-
     private var footer: some View {
         HStack {
             if !Permissions.hasAccessibility {
@@ -113,14 +85,6 @@ struct MenuBarView: View {
     }
 
     // MARK: Helpers
-
-    private func refreshHistory() {
-        if historyQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-            history = coordinator.recentHistory(limit: 10)
-        } else {
-            history = coordinator.searchHistory(historyQuery)
-        }
-    }
 
     private var statusText: String {
         switch coordinator.phase {

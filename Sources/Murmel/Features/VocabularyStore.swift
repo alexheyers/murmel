@@ -1,12 +1,24 @@
 import Foundation
 
+/// Ein Wörterbuch-Eintrag für die UI: gesprochene Falschschreibung → korrekter Begriff.
+struct VocabEntry: Identifiable, Equatable {
+    var id: String { wrong }
+    let wrong: String   // wie Whisper es (falsch) hört, z.B. "n acht n"
+    let right: String   // korrekt, z.B. "n8n"
+}
+
 /// Korrigiert Fachbegriffe und Eigennamen anhand eines Wörterbuchs (`vokabular.json`).
 ///
 /// Das Wörterbuch ist eine flache JSON-Map `{ "falschschreibung": "Korrektbegriff", ... }`.
 /// Beim Diktieren werden Fachbegriffe von Whisper oft phonetisch falsch erkannt
 /// (z.B. "n acht n" statt "n8n"). `correct(_:)` ersetzt solche bekannten Falschschreibungen
 /// case-insensitive und an Wortgrenzen durch den korrekten Zielbegriff.
-final class VocabularyStore: VocabularyCorrecting {
+///
+/// Ist `ObservableObject`, damit die Wörterbuch-UI Änderungen live anzeigt.
+final class VocabularyStore: ObservableObject, VocabularyCorrecting {
+
+    /// Für die UI: alle Einträge, alphabetisch nach Falschschreibung. Nur auf Main mutieren.
+    @Published private(set) var entries: [VocabEntry] = []
 
     // MARK: - Interner Zustand
 
@@ -76,6 +88,51 @@ final class VocabularyStore: VocabularyCorrecting {
             dictionary = loaded
             rules = Self.compileRules(from: loaded)
         }
+        refreshEntries()
+    }
+
+    // MARK: - Bearbeiten (aus der UI)
+
+    /// Fügt einen Eintrag hinzu bzw. überschreibt einen bestehenden mit gleichem Schlüssel.
+    /// Speichert sofort nach `vokabular.json` und aktualisiert die UI.
+    func addEntry(wrong: String, right: String) {
+        let w = wrong.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let r = right.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !w.isEmpty, !r.isEmpty else { return }
+        queue.sync {
+            dictionary[w] = r
+            rules = Self.compileRules(from: dictionary)
+        }
+        persistAndRefresh()
+    }
+
+    /// Entfernt einen Eintrag, speichert und aktualisiert die UI.
+    func removeEntry(_ entry: VocabEntry) {
+        queue.sync {
+            dictionary[entry.wrong] = nil
+            rules = Self.compileRules(from: dictionary)
+        }
+        persistAndRefresh()
+    }
+
+    /// Schreibt das aktuelle Wörterbuch auf die Platte und frischt dann die UI-Liste auf.
+    private func persistAndRefresh() {
+        let snapshot = queue.sync { dictionary }
+        Self.writeDictionary(snapshot)
+        refreshEntries()
+    }
+
+    /// Baut `entries` (sortiert) aus dem internen Dictionary — immer auf dem Main-Thread.
+    private func refreshEntries() {
+        let snapshot = queue.sync { dictionary }
+        let list = snapshot
+            .map { VocabEntry(wrong: $0.key, right: $0.value) }
+            .sorted { $0.wrong < $1.wrong }
+        if Thread.isMainThread {
+            entries = list
+        } else {
+            DispatchQueue.main.async { self.entries = list }
+        }
     }
 
     // MARK: - Laden / Default anlegen
@@ -102,6 +159,11 @@ final class VocabularyStore: VocabularyCorrecting {
 
     /// Schreibt das Default-Wörterbuch hübsch formatiert nach `MurmelPaths.vocabularyFile`.
     private static func writeDefault() {
+        writeDictionary(defaultVocabulary)
+    }
+
+    /// Schreibt ein beliebiges Wörterbuch hübsch formatiert nach `MurmelPaths.vocabularyFile`.
+    private static func writeDictionary(_ dict: [String: String]) {
         // Sicherstellen, dass ~/.murmel existiert.
         MurmelPaths.ensureDirectories()
 
@@ -109,7 +171,7 @@ final class VocabularyStore: VocabularyCorrecting {
         // Pretty-Print + stabile Schlüsselreihenfolge für eine gut lesbare Datei.
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-        guard let data = try? encoder.encode(defaultVocabulary) else { return }
+        guard let data = try? encoder.encode(dict) else { return }
         try? data.write(to: MurmelPaths.vocabularyFile, options: .atomic)
     }
 

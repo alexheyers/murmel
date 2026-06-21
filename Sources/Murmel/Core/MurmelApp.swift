@@ -12,6 +12,12 @@ struct MurmelApp: App {
             MenuBarLabel(coordinator: appDelegate.coordinator)
         }
         .menuBarExtraStyle(.window)
+
+        // Verwaltungsfenster (Verlauf + Wörterbuch), aus dem Menü geöffnet.
+        Window("Murmel", id: "murmel-main") {
+            ManagementView(coordinator: appDelegate.coordinator)
+        }
+        .windowResizability(.contentSize)
     }
 }
 
