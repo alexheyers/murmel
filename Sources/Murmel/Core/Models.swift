@@ -138,6 +138,7 @@ struct HistoryEntry: Identifiable, Equatable {
     let raw: String      // Whisper-Rohtext
     let final: String    // Text der eingefügt wurde
     let style: DictationStyle
+    let app: String      // App, in die eingefügt wurde (z.B. "Terminal"), "" wenn unbekannt
 }
 
 /// Ergebnis der Sprachbefehl-Auswertung.

@@ -34,8 +34,8 @@ let fb = await polisher.polish("bitte nicht verlieren", style: .email, instructi
 check(fb == "bitte nicht verlieren", "Ollama unerreichbar → Fallback auf Originaltext")
 
 let entries = [
-    HistoryEntry(id: 1, timestamp: Date(), raw: "ähm das ist ein test ähm wirklich", final: "x", style: .raw),
-    HistoryEntry(id: 2, timestamp: Date(), raw: "noch ein satz mit vielen wörtern hier drin", final: "x", style: .raw)
+    HistoryEntry(id: 1, timestamp: Date(), raw: "ähm das ist ein test ähm wirklich", final: "x", style: .raw, app: "Test"),
+    HistoryEntry(id: 2, timestamp: Date(), raw: "noch ein satz mit vielen wörtern hier drin", final: "x", style: .raw, app: "Terminal")
 ]
 let an = SpeechAnalyzer.analyze(entries)
 check(an.dictations == 2, "Analyse: 2 Diktate erkannt")

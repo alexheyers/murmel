@@ -9,6 +9,7 @@ struct SpeechAnalysis: Equatable {
     var longestWords: Int = 0
     var fillers: [(word: String, count: Int)] = []
     var topWords: [(word: String, count: Int)] = []
+    var apps: [(app: String, count: Int)] = []
     var tips: [String] = []
 
     static func == (lhs: SpeechAnalysis, rhs: SpeechAnalysis) -> Bool {
@@ -78,6 +79,14 @@ enum SpeechAnalyzer {
             .sorted { $0.value > $1.value }
             .prefix(8)
             .map { ($0.key, $0.value) }
+
+        // Wo wurde diktiert? (App-Verteilung)
+        var appCounts: [String: Int] = [:]
+        for e in entries {
+            let name = e.app.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty { appCounts[name, default: 0] += 1 }
+        }
+        a.apps = appCounts.sorted { $0.value > $1.value }.prefix(6).map { ($0.key, $0.value) }
 
         a.tips = buildTips(a)
         return a

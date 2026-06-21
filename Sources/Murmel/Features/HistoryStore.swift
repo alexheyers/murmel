@@ -68,7 +68,8 @@ final class HistoryStore: HistoryStoring {
             ts REAL NOT NULL,
             raw TEXT NOT NULL,
             final TEXT NOT NULL,
-            style TEXT NOT NULL
+            style TEXT NOT NULL,
+            app TEXT
         );
         """
         var errMsg: UnsafeMutablePointer<CChar>?
@@ -76,22 +77,24 @@ final class HistoryStore: HistoryStoring {
             let msg = errMsg != nil ? String(cString: errMsg!) : "unbekannt"
             NSLog("HistoryStore: CREATE TABLE fehlgeschlagen: \(msg)")
         }
-        // sqlite3_exec alloziert errMsg ggf. selbst — muss freigegeben werden.
         if errMsg != nil { sqlite3_free(errMsg) }
+
+        // Migration für bestehende DBs: Spalte `app` ergänzen (Fehler = existiert schon → ignorieren).
+        sqlite3_exec(db, "ALTER TABLE history ADD COLUMN app TEXT;", nil, nil, nil)
     }
 
     // MARK: - HistoryStoring
 
     /// Fügt einen neuen Verlaufseintrag ein. Feuert asynchron (kein Warten nötig,
     /// das Diktat soll nicht durch DB-I/O blockiert werden).
-    func add(raw: String, final: String, style: DictationStyle) {
+    func add(raw: String, final: String, style: DictationStyle, app: String) {
         let ts = Date().timeIntervalSince1970
         let styleRaw = style.rawValue
 
         queue.async { [weak self] in
             guard let self, let db = self.db else { return }
 
-            let sql = "INSERT INTO history (ts, raw, final, style) VALUES (?, ?, ?, ?);"
+            let sql = "INSERT INTO history (ts, raw, final, style, app) VALUES (?, ?, ?, ?, ?);"
             var stmt: OpaquePointer?
 
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
@@ -106,6 +109,7 @@ final class HistoryStore: HistoryStoring {
             sqlite3_bind_text(stmt, 2, raw, -1, SQLITE_TRANSIENT)
             sqlite3_bind_text(stmt, 3, final, -1, SQLITE_TRANSIENT)
             sqlite3_bind_text(stmt, 4, styleRaw, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmt, 5, app, -1, SQLITE_TRANSIENT)
 
             if sqlite3_step(stmt) != SQLITE_DONE {
                 NSLog("HistoryStore: INSERT step fehlgeschlagen: \(String(cString: sqlite3_errmsg(db)))")
@@ -118,7 +122,7 @@ final class HistoryStore: HistoryStoring {
         queue.sync {
             guard let db = self.db else { return [] }
 
-            let sql = "SELECT id, ts, raw, final, style FROM history ORDER BY id DESC LIMIT ?;"
+            let sql = "SELECT id, ts, raw, final, style, app FROM history ORDER BY id DESC LIMIT ?;"
             var stmt: OpaquePointer?
 
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
@@ -138,7 +142,7 @@ final class HistoryStore: HistoryStoring {
             guard let db = self.db else { return [] }
 
             let sql = """
-            SELECT id, ts, raw, final, style FROM history
+            SELECT id, ts, raw, final, style, app FROM history
             WHERE final LIKE ? OR raw LIKE ?
             ORDER BY id DESC LIMIT 50;
             """
@@ -173,6 +177,7 @@ final class HistoryStore: HistoryStoring {
             let raw = textColumn(stmt, 2)
             let final = textColumn(stmt, 3)
             let styleRaw = textColumn(stmt, 4)
+            let app = textColumn(stmt, 5)
 
             // Fallback auf `.raw`, falls der gespeicherte Stil unbekannt ist.
             let style = DictationStyle(rawValue: styleRaw) ?? .raw
@@ -183,7 +188,8 @@ final class HistoryStore: HistoryStoring {
                     timestamp: Date(timeIntervalSince1970: ts),
                     raw: raw,
                     final: final,
-                    style: style
+                    style: style,
+                    app: app
                 )
             )
         }

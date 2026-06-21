@@ -73,7 +73,7 @@ protocol VocabularyCorrecting: AnyObject {
 
 /// Persistiert den Diktat-Verlauf (SQLite).
 protocol HistoryStoring: AnyObject {
-    func add(raw: String, final: String, style: DictationStyle)
+    func add(raw: String, final: String, style: DictationStyle, app: String)
     func recent(limit: Int) -> [HistoryEntry]
     func search(_ query: String) -> [HistoryEntry]
 }

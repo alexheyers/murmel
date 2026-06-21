@@ -304,6 +304,15 @@ private struct AnalyseTab: View {
                     }
                 }
 
+                if !a.apps.isEmpty {
+                    sectionTitle("Wo du diktierst", "Top-Apps")
+                    LazyVGrid(columns: chipCols, alignment: .leading, spacing: 8) {
+                        ForEach(a.apps, id: \.app) { ap in
+                            chip(ap.app, "\(ap.count)×", tint: .teal)
+                        }
+                    }
+                }
+
                 sectionTitle("Lern-Tipps", "wie du noch klarer sprichst")
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(a.tips.enumerated()), id: \.offset) { _, tip in

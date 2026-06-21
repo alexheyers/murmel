@@ -193,8 +193,10 @@ final class AppCoordinator: ObservableObject {
                 return
             }
 
-            // 5. Verlauf
-            history.add(raw: raw, final: trimmed, style: settings.currentStyle)
+            // 5. Verlauf (inkl. App, in die eingefügt wird — Murmel selbst stiehlt keinen Fokus,
+            //    also ist die frontmost-App das Zielfenster)
+            let targetApp = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
+            history.add(raw: raw, final: trimmed, style: settings.currentStyle, app: targetApp)
 
             // 6. Einfügen
             phase = .inserting
