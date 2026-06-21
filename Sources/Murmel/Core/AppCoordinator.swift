@@ -315,7 +315,9 @@ final class AppCoordinator: ObservableObject {
             do {
                 let text = try await previewTranscriber.transcribe(snap)
                 try? FileManager.default.removeItem(at: snap)
-                if phase == .recording, !text.isEmpty { overlay.update(text) }
+                // Nur den jüngsten Abschnitt zeigen; truncationMode(.head) im Overlay
+                // sorgt zusätzlich dafür, dass stets die zuletzt gesprochenen Worte sichtbar sind.
+                if phase == .recording, !text.isEmpty { overlay.update(String(text.suffix(400))) }
             } catch {
                 try? FileManager.default.removeItem(at: snap)
             }

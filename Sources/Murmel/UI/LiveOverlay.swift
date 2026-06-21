@@ -40,7 +40,7 @@ final class LiveOverlay {
     private func build() {
         let host = NSHostingView(rootView: OverlayView(model: model))
         let p = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 130),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 210),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -77,15 +77,18 @@ private struct OverlayView: View {
                 .foregroundStyle(color)
                 .symbolEffect(.pulse, isActive: model.state == .listening)
             Text(model.text.isEmpty ? placeholder : model.text)
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.primary)
-                .lineLimit(3)
+                .lineLimit(6)
+                .truncationMode(.head)      // immer die ZULETZT gesprochenen Worte zeigen
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .animation(.easeOut(duration: 0.15), value: model.text)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-        .frame(width: 560, alignment: .leading)
+        .frame(width: 600, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
