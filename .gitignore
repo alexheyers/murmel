@@ -1,0 +1,18 @@
+# Swift / SPM
+.build/
+.swiftpm/
+*.xcodeproj
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Build output
+Murmel.app/
+dist/
+
+# Runtime data (Murmel speichert hier Modelle, Verlauf, Aufnahmen)
+.murmel/
+
+# Secrets
+.env
