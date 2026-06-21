@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 /// Zentrale Steuerung: besitzt alle Komponenten, verdrahtet den Hotkey
 /// und fährt die Diktat-Pipeline (Aufnahme → Transkription → Befehle →
@@ -15,7 +16,7 @@ final class AppCoordinator: ObservableObject {
     // Komponenten (konkrete Klassen kommen aus den Einzeldateien).
     private let recorder: AudioRecording
     private let transcriber: Transcribing
-    private let polisher: Polishing
+    private let polisher: OllamaPolisher
     private let inserter: TextInserting
     private let hotkey: HotkeyMonitoring
     /// Konkreter Store (ObservableObject) — wird auch von der Wörterbuch-UI beobachtet.
@@ -140,12 +141,29 @@ final class AppCoordinator: ObservableObject {
             // 3. Wörterbuch
             let corrected = vocabulary.correct(cmd.text)
 
-            // 4. Politur
+            // 4. Politur / Übersetzung / Befehl / Assistent / Zusammenfassen
+            let style = settings.currentStyle
+            let llmInput: String
+            let llmInstruction: String
+            if style.usesClipboardInput {
+                // Befehls-Modus: gesprochene Anweisung wird auf den kopierten Text angewandt.
+                let clip = (NSPasteboard.general.string(forType: .string) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !clip.isEmpty else {
+                    Log.line("Befehls-Modus: Zwischenablage leer → nichts zu tun")
+                    cleanup(wav); phase = .idle; Sounds.soft(); return
+                }
+                llmInput = clip
+                llmInstruction = corrected
+            } else {
+                llmInput = corrected
+                llmInstruction = settings.instruction(for: style)
+            }
             phase = .polishing
             let final = await polisher.polish(
-                corrected,
-                style: settings.currentStyle,
-                instruction: settings.instruction(for: settings.currentStyle),
+                llmInput,
+                style: style,
+                instruction: llmInstruction,
                 vocabularyHint: vocabulary.terms
             )
             let trimmed = final.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -191,6 +209,48 @@ final class AppCoordinator: ObservableObject {
     func reinsert(_ entry: HistoryEntry) {
         inserter.insert(entry.final)
         Sounds.done()
+    }
+
+    // MARK: - Auto-Wörterbuch
+
+    /// Lässt Ollama aus dem Verlauf wahrscheinliche Falschschreibungen → Korrektbegriffe vorschlagen.
+    func suggestVocabulary() async -> [VocabSuggestion] {
+        let texts = history.recent(limit: 80).map { $0.raw }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !texts.isEmpty else { return [] }
+
+        let existing = vocabulary.terms.joined(separator: ", ")
+        let system = [
+            "Du analysierst diktierte Texte und findest Fachbegriffe, Tool- oder Eigennamen,",
+            "die eine Spracherkennung wahrscheinlich FALSCH geschrieben hat (z.B. 'n acht n' statt 'n8n').",
+            "Gib AUSSCHLIESSLICH ein JSON-Array zurück, max. 8 Einträge:",
+            "[{\"wrong\":\"falsch gehörte Schreibweise\",\"right\":\"korrekte Schreibweise\"}]",
+            "- Nur echte, plausible Fälle. Keine bereits korrekten Begriffe. Kein Fließtext, nur JSON."
+        ].joined(separator: "\n")
+        let user = "Bereits bekannt (ignorieren): \(existing)\n\nDiktate:\n" + texts.joined(separator: "\n")
+
+        guard let raw = await polisher.complete(system: system, user: user) else { return [] }
+        return Self.parseSuggestions(raw)
+    }
+
+    /// Extrahiert das JSON-Array aus der (ggf. umrahmten) Modell-Antwort.
+    private static func parseSuggestions(_ raw: String) -> [VocabSuggestion] {
+        guard let start = raw.firstIndex(of: "["), let end = raw.lastIndex(of: "]") else { return [] }
+        let json = String(raw[start...end])
+        guard let data = json.data(using: .utf8),
+              let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        var seen = Set<String>()
+        var out: [VocabSuggestion] = []
+        for obj in arr {
+            guard let w = (obj["wrong"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  let r = (obj["right"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !w.isEmpty, !r.isEmpty, w.lowercased() != r.lowercased() else { continue }
+            let key = w.lowercased()
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            out.append(VocabSuggestion(wrong: w, right: r))
+        }
+        return out
     }
 
     // MARK: - Helpers

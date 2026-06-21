@@ -12,7 +12,7 @@ struct ManagementView: View {
             ModiTab(settings: coordinator.settings)
                 .tabItem { Label("Modi", systemImage: "slider.horizontal.3") }
 
-            VocabularyTab(store: coordinator.vocabulary)
+            VocabularyTab(store: coordinator.vocabulary, coordinator: coordinator)
                 .tabItem { Label("Wörterbuch", systemImage: "character.book.closed") }
 
             AnalyseTab(coordinator: coordinator)
@@ -126,7 +126,7 @@ private struct ModiTab: View {
 
             Divider()
 
-            if settings.currentStyle.usesPolish {
+            if settings.currentStyle.usesEditableInstruction {
                 Text("Formulierung für \(settings.currentStyle.displayName)")
                     .font(.subheadline).bold()
                 Text("Diese Anweisung bekommt das lokale Modell. Pass sie an, wie der Text klingen soll.")
@@ -147,8 +147,7 @@ private struct ModiTab: View {
                     Spacer()
                 }
             } else {
-                Label("Roh fügt genau das gesprochene Wort ein — keine Politur, kein Modell.",
-                      systemImage: "checkmark.seal")
+                Label(settings.currentStyle.summary, systemImage: "checkmark.seal")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
@@ -162,13 +161,28 @@ private struct ModiTab: View {
 
 private struct VocabularyTab: View {
     @ObservedObject var store: VocabularyStore
+    var coordinator: AppCoordinator
     @State private var newWrong = ""
     @State private var newRight = ""
+    @State private var suggestions: [VocabSuggestion] = []
+    @State private var loadingSuggest = false
+    @State private var suggestRan = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Eigene Begriffe: links, wie Whisper es (falsch) hört — rechts, wie es korrekt geschrieben wird.")
-                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text("Eigene Begriffe: links, wie Whisper es (falsch) hört — rechts korrekt.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button { runSuggest() } label: {
+                    Label(loadingSuggest ? "Analysiere…" : "Vorschläge aus Verlauf", systemImage: "sparkles")
+                }
+                .buttonStyle(.borderless).disabled(loadingSuggest)
+            }
+
+            if loadingSuggest || !suggestions.isEmpty || suggestRan {
+                suggestionsBox
+            }
 
             HStack(spacing: 8) {
                 TextField("gesprochen / falsch", text: $newWrong).textFieldStyle(.roundedBorder)
@@ -203,6 +217,34 @@ private struct VocabularyTab: View {
         .padding(16)
     }
 
+    private var suggestionsBox: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if loadingSuggest {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Ollama sucht Begriffe im Verlauf…").font(.caption).foregroundStyle(.secondary) }
+            } else if suggestions.isEmpty {
+                Text("Keine neuen Vorschläge gefunden.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(suggestions) { s in
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
+                        Text(s.wrong).foregroundStyle(.secondary)
+                        Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.tertiary)
+                        Text(s.right).bold()
+                        Spacer()
+                        Button("Übernehmen") {
+                            store.addEntry(wrong: s.wrong, right: s.right)
+                            suggestions.removeAll { $0.id == s.id }
+                        }.buttonStyle(.borderless)
+                    }
+                    .padding(9)
+                    .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+                }
+            }
+        }
+        .padding(10)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+    }
+
     private var canAdd: Bool {
         !newWrong.trimmingCharacters(in: .whitespaces).isEmpty &&
         !newRight.trimmingCharacters(in: .whitespaces).isEmpty
@@ -211,6 +253,18 @@ private struct VocabularyTab: View {
     private func add() {
         store.addEntry(wrong: newWrong, right: newRight)
         newWrong = ""; newRight = ""
+    }
+
+    private func runSuggest() {
+        loadingSuggest = true
+        suggestRan = true
+        Task {
+            let result = await coordinator.suggestVocabulary()
+            await MainActor.run {
+                suggestions = result
+                loadingSuggest = false
+            }
+        }
     }
 }
 

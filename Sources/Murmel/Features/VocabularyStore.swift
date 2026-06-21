@@ -7,6 +7,13 @@ struct VocabEntry: Identifiable, Equatable {
     let right: String   // korrekt, z.B. "n8n"
 }
 
+/// Ein KI-Vorschlag fürs Wörterbuch (aus dem Verlauf abgeleitet).
+struct VocabSuggestion: Identifiable, Equatable {
+    var id: String { wrong + "→" + right }
+    let wrong: String
+    let right: String
+}
+
 /// Korrigiert Fachbegriffe und Eigennamen anhand eines Wörterbuchs (`vokabular.json`).
 ///
 /// Das Wörterbuch ist eine flache JSON-Map `{ "falschschreibung": "Korrektbegriff", ... }`.

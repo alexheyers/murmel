@@ -52,6 +52,13 @@ final class OllamaPolisher: Polishing {
             let system: String
             if style.isTranslation, let target = style.targetLanguageName {
                 system = buildTranslationPrompt(target: target, nuance: instruction, vocabularyHint: vocabularyHint)
+            } else if style.isAssistant {
+                system = buildAssistantPrompt()
+            } else if style.isSummarize {
+                system = buildSummarizePrompt()
+            } else if style.isCommand {
+                // Befehls-Modus: `instruction` ist die gesprochene Anweisung, `text` der Zwischenablage-Inhalt.
+                system = buildCommandPrompt(instruction: instruction)
             } else {
                 system = buildSystemPrompt(instruction: instruction, vocabularyHint: vocabularyHint)
             }
@@ -75,18 +82,34 @@ final class OllamaPolisher: Polishing {
                 return text
             }
 
-            // Halluzinations-Schutz: Ein kleines Modell neigt dazu, zu „antworten"
-            // oder Listen anzuhängen. Wird die Politur deutlich länger als das
-            // Original, ist das fast sicher Mist → wir nehmen den Rohtext.
-            let limit = max(120, trimmedInput.count * 4)
-            if cleaned.count > limit {
-                Log.line("Polisher: Ausgabe zu lang (\(cleaned.count) > \(limit)) → Fallback auf Rohtext")
-                return trimmedInput
+            // Halluzinations-Schutz nur für Korrektur/Übersetzung — bei Assistent/
+            // Zusammenfassen/Befehl variiert die Länge naturgemäß stark.
+            if style.usesLengthGuard {
+                let limit = max(120, trimmedInput.count * 4)
+                if cleaned.count > limit {
+                    Log.line("Polisher: Ausgabe zu lang (\(cleaned.count) > \(limit)) → Fallback auf Rohtext")
+                    return trimmedInput
+                }
             }
 
             return cleaned
         } catch {
             return text
+        }
+    }
+
+    /// Generische Einmal-Anfrage an Ollama (für Features wie Wörterbuch-Vorschläge).
+    /// Gibt nil zurück bei jedem Fehler.
+    func complete(system: String, user: String) async -> String? {
+        do {
+            let request = try makeChatRequest(system: system, userText: user)
+            let (data, response) = try await session.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                return nil
+            }
+            return parseResponse(data)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            return nil
         }
     }
 
@@ -149,6 +172,40 @@ final class OllamaPolisher: Polishing {
             lines.append("- Diese Fachbegriffe exakt beibehalten: " + hints.joined(separator: ", ") + ".")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Assistent-Modus: beantwortet die gesprochene Frage/Anweisung direkt.
+    private func buildAssistantPrompt() -> String {
+        [
+            "Du bist ein hilfreicher, knapper Assistent.",
+            "Beantworte die folgende gesprochene Frage oder führe die Anweisung aus — auf Deutsch.",
+            "Gib nur die Antwort selbst zurück, ohne Einleitung, ohne Rückfragen, ohne Meta-Kommentar."
+        ].joined(separator: "\n")
+    }
+
+    /// Zusammenfassen-Modus: fasst das Diktat knapp zusammen.
+    private func buildSummarizePrompt() -> String {
+        [
+            "Fasse den folgenden diktierten Text knapp und klar zusammen.",
+            "Nutze Stichpunkte, wenn es mehrere Punkte gibt; sonst zwei, drei Sätze.",
+            "Behalte alle wichtigen Aussagen, erfinde nichts dazu.",
+            "Gib NUR die Zusammenfassung zurück — ohne Einleitung."
+        ].joined(separator: "\n")
+    }
+
+    /// Befehls-Modus: wendet die gesprochene Anweisung auf den (Zwischenablage-)Text an.
+    private func buildCommandPrompt(instruction: String) -> String {
+        let ins = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        return [
+            "Du bist ein präzises Text-Werkzeug.",
+            "Wende die folgende Anweisung auf den anschließenden Text an:",
+            "ANWEISUNG: \(ins)",
+            "",
+            "Strikte Regeln:",
+            "- Gib AUSSCHLIESSLICH den überarbeiteten Text zurück — keine Erklärung, keine Anführungszeichen.",
+            "- Antworte NICHT auf den Inhalt, kommentiere nicht — nur die Anweisung ausführen.",
+            "- Behalte alles, was die Anweisung nicht betrifft, unverändert."
+        ].joined(separator: "\n")
     }
 
     // MARK: - HTTP-Request (Ollama Chat-API)

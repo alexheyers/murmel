@@ -20,6 +20,9 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     case brainstorm
     case translateEN
     case translateDE
+    case command
+    case assistant
+    case summarize
 
     var id: String { rawValue }
 
@@ -33,6 +36,9 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .brainstorm:   return "Brainstorming"
         case .translateEN:  return "→ Englisch"
         case .translateDE:  return "→ Deutsch"
+        case .command:      return "Befehl (Zwischenablage)"
+        case .assistant:    return "Assistent"
+        case .summarize:    return "Zusammenfassen"
         }
     }
 
@@ -46,11 +52,20 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .brainstorm:   return "Lose Gedanken zu klaren Stichpunkten geordnet."
         case .translateEN:  return "Sprich Deutsch — es wird ins Englische übersetzt."
         case .translateDE:  return "Sprich beliebig — es wird ins Deutsche übersetzt."
+        case .command:      return "Text kopieren, Anweisung sprechen — wandelt den kopierten Text um."
+        case .assistant:    return "Frage stellen — die Antwort wird eingefügt."
+        case .summarize:    return "Langes Diktat → knappe Zusammenfassung."
         }
     }
 
     /// Übersetzungs-Modus? Dann nutzt der Polisher einen Übersetzer-Prompt statt Korrektur.
     var isTranslation: Bool { self == .translateEN || self == .translateDE }
+    var isAssistant: Bool { self == .assistant }
+    var isSummarize: Bool { self == .summarize }
+    /// Befehls-Modus: gesprochene Anweisung wird auf den ZWISCHENABLAGE-Text angewandt.
+    var isCommand: Bool { self == .command }
+    /// Modi, deren LLM-Eingabe die Zwischenablage ist (statt des Diktats).
+    var usesClipboardInput: Bool { self == .command }
 
     /// Zielsprache bei Übersetzungs-Modi.
     var targetLanguageName: String? {
@@ -63,6 +78,11 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
 
     /// Ob für diesen Stil überhaupt poliert/übersetzt wird.
     var usesPolish: Bool { self != .raw }
+
+    /// Ob für diesen Modus der Halluzinations-Längen-Guard gilt (nur Korrektur/Übersetzung).
+    var usesLengthGuard: Bool {
+        !(isAssistant || isSummarize || isCommand)
+    }
 
     /// Standard-Instruktion an das lokale LLM (editierbar über die Einstellungen).
     var polishInstruction: String {
@@ -85,7 +105,14 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
             return "Natürliches, idiomatisches Englisch."
         case .translateDE:
             return "Natürliches, idiomatisches Deutsch."
+        case .command, .assistant, .summarize:
+            return ""
         }
+    }
+
+    /// Ob dieser Modus eine editierbare Stil-Instruktion nutzt (für den Modi-Editor).
+    var usesEditableInstruction: Bool {
+        usesPolish && !isCommand && !isAssistant && !isSummarize
     }
 }
 
