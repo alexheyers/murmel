@@ -283,6 +283,68 @@
   </div>
 </section>
 
+<!-- DEBUGGING -->
+<section>
+  <div class="wrap">
+    <div class="kicker">// Schritt 6 — Als es nicht lief</div>
+    <h2>Zwei echte Bugs. <span class="u">Systematisch gejagt, nicht geraten.</span></h2>
+    <p class="big">Bauen ist das eine. Zum Laufen bringen das andere. Statt blind zu
+      probieren, habe ich ein <b>Datei-Log an jede Pipeline-Stufe</b> gehängt — und damit
+      präzise gesehen, <i>wo</i> es bricht. So sahen die zwei Brocken aus:</p>
+
+    <div class="steps">
+      <div class="step"><div class="n">🐛</div><div>
+        <h3>Bug 1 — Das Recht verschwand bei jedem Rebuild</h3>
+        <p>Bedienungshilfen-Recht erteilt → trotzdem „kein Recht". <b>Root Cause:</b> macOS
+           bindet das Recht an die Code-Signatur. Jeder neue Build = neue Ad-hoc-Signatur =
+           neuer Hash → das erteilte Recht passt nicht mehr.</p>
+        <span class="tag">Fix: stabile selbst-signierte Identität (überlebt Rebuilds)</span>
+      </div></div>
+      <div class="step"><div class="n">🐛</div><div>
+        <h3>Bug 2 — Die KI-Politur halluzinierte</h3>
+        <p>Das kleine Politur-Modell kippte die ganze Wörterbuch-Liste in den Text und
+           <i>antwortete</i> auf „Hallo" wie ein Chatbot. <b>Root Cause:</b> zu schwacher
+           Prompt für ein 3B-Modell.</p>
+        <span class="tag">Fix: strikter System-Prompt + Halluzinations-Schutz + Standard „Roh"</span>
+      </div></div>
+    </div>
+
+    <div class="term">
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+<pre><span class="dim"># Bug 1 — das Log zeigt den genauen Bruch:</span>
+HotkeyMonitor.start() <span class="am">AXIsProcessTrusted=false</span> → kein Recht → <span class="am">FEHLGESCHLAGEN</span>
+
+<span class="dim"># Bug 2 — Eingabe vs. was das Modell daraus machte:</span>
+Rohtext   = <span class="c">"Hallo!"</span>
+füge ein  = <span class="am">"Claude, Claude Code, Docker, … n8n, wie kann ich Ihnen helfen?"</span>  <span class="dim"># 🤦</span>
+
+<span class="dim"># Nach den Fixes — sauber:</span>
+Rohtext   = <span class="c">"Hallo!"</span>
+füge ein  = <span class="ok">"Hallo!"</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- LIVE-BEWEIS -->
+<section>
+  <div class="wrap">
+    <div class="kicker">// Es läuft</div>
+    <h2>Der Live-Beweis.</h2>
+    <p class="big">Ein echtes Diktat, ein Take, Deutsch und Englisch <b>mitten im Satz</b>
+      gemischt. Genau so eingefügt — Whisper <code>large-v3-turbo</code> in Bestform:</p>
+    <div class="term">
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+<pre><span class="dim"># gesprochen → eingefügt (1:1):</span>
+<span class="ok">"Okay, das wird jetzt ein längerer Test für meine neue Murmel-App.
+ Ich möchte ausprobieren, ob das alles so klappt, wie es klappen sollte.
+ Geh mal davon aus, dass wir sowohl prompten als auch colloquial,
+ English as well, you should get everything."</span></pre>
+    </div>
+    <p class="big" style="margin-top:18px">Code-Switching DE↔EN, korrekte Zeichensetzung,
+      sogar „Murmel-App" mit Bindestrich — fehlerfrei.</p>
+  </div>
+</section>
+
 <!-- LESSON -->
 <section>
   <div class="wrap">
