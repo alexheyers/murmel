@@ -42,4 +42,52 @@ enum TranscriptHygiene {
              .lowercased()
         return artifactPhrases.contains(s)
     }
+
+    /// Kollabiert pathologische Wiederholungsschleifen, in die Whisper bei längerem
+    /// Audio kippen kann (z.B. „die wir sind so viele, die wir sind so viele, …" ×15).
+    ///
+    /// Erkennt eine unmittelbar wiederholte Wortfolge (1–6 Wörter) und ersetzt die
+    /// ganze Kette durch EIN Vorkommen. Vergleich case-insensitiv und ohne Satzzeichen,
+    /// damit „viele." / „viele," als gleich gelten. Konservativ:
+    ///  - Phrasen (≥2 Wörter): ab 3 Wiederholungen kollabieren,
+    ///  - Einzelwörter: erst ab 6 (echte Betonung wie „nein nein nein" bleibt erhalten).
+    static func collapseRepetitions(_ text: String) -> String {
+        let words = text.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        guard words.count > 4 else { return text }
+
+        // Normalisierte Vergleichsform pro Wort (lowercased, Satzzeichen-Ränder weg).
+        let norm = words.map {
+            $0.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,!?;:–—-…\"'»«„“”"))
+        }
+
+        var out: [String] = []
+        var i = 0
+        while i < words.count {
+            var collapsed = false
+            let maxN = min(6, (words.count - i) / 2)
+            if maxN >= 1 {
+                for n in stride(from: maxN, through: 1, by: -1) {
+                    // Wie oft wiederholt sich das n-Gramm ab i unmittelbar?
+                    var reps = 1
+                    var j = i + n
+                    while j + n <= words.count && Array(norm[j..<j+n]) == Array(norm[i..<i+n]) {
+                        reps += 1
+                        j += n
+                    }
+                    let threshold = n >= 2 ? 3 : 6
+                    if reps >= threshold {
+                        out.append(contentsOf: words[i..<i+n])  // genau EIN Vorkommen behalten
+                        i = j
+                        collapsed = true
+                        break
+                    }
+                }
+            }
+            if !collapsed {
+                out.append(words[i])
+                i += 1
+            }
+        }
+        return out.joined(separator: " ")
+    }
 }

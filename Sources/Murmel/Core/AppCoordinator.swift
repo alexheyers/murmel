@@ -195,7 +195,11 @@ final class AppCoordinator: ObservableObject {
         do {
             // 1. Transkription (mit Prompt-Biasing auf Eigennamen/Fachbegriffe)
             Log.line("Pipeline: transkribiere \(wav.lastPathComponent)…")
-            let raw = try await transcriber.transcribe(wav, prompt: currentWhisperPrompt())
+            let transcribed = try await transcriber.transcribe(wav, prompt: currentWhisperPrompt())
+            // De-Loop: Whisper-Wiederholungsschleifen bei längerem Audio kollabieren,
+            // BEVOR der Text weiterverarbeitet/eingefügt wird.
+            let raw = TranscriptHygiene.collapseRepetitions(transcribed)
+            if raw != transcribed { Log.line("Pipeline: Wiederholungsschleife kollabiert (\(transcribed.count)→\(raw.count) Zeichen)") }
             Log.line("Pipeline: Rohtext = \"\(raw)\"")
             let trimmedRaw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             // Leere Erkennung ODER reine Halluzination (z.B. „*Piep*" bei Stille) → nichts einfügen.
@@ -451,7 +455,8 @@ final class AppCoordinator: ObservableObject {
         Task { @MainActor in
             defer { previewBusy = false }
             do {
-                let text = try await previewTranscriber.transcribe(snap, prompt: prompt)
+                let rawPreview = try await previewTranscriber.transcribe(snap, prompt: prompt)
+                let text = TranscriptHygiene.collapseRepetitions(rawPreview)
                 try? FileManager.default.removeItem(at: snap)
                 // Anti-Flacker: einen drastisch KÜRZEREN Tick (base-Modell-Ausreißer)
                 // ignorieren, statt die gewachsene Vorschau zurückzusetzen.

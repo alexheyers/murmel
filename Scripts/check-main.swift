@@ -82,6 +82,16 @@ check(TranscriptHygiene.isLikelyHallucination("Untertitel der Amara.org-Communit
 check(!TranscriptHygiene.isLikelyHallucination("Das ist ein echter Satz."), "Echter Satz NICHT als Halluzination")
 check(!TranscriptHygiene.isLikelyHallucination("Vielen Dank."), "‚Vielen Dank.' bleibt erhalten (kein Falsch-Filter)")
 
+// De-Loop: Whisper-Wiederholungsschleifen kollabieren
+let loop = "Wir haben viel gesammelt. die wir sind so viele, die wir sind so viele, die wir sind so viele, die wir sind so viele, die wir sind so viele."
+let deloop = TranscriptHygiene.collapseRepetitions(loop)
+check(deloop.lowercased().contains("wir haben viel gesammelt"), "De-Loop: echter Anfang bleibt erhalten")
+check(!deloop.lowercased().contains("so viele, die wir sind so viele, die wir sind so viele"), "De-Loop: Schleife kollabiert  (\(deloop.count) Zeichen)")
+let normal = "Das ist ein ganz normaler Satz ohne jede Wiederholung darin."
+check(TranscriptHygiene.collapseRepetitions(normal) == normal, "De-Loop: normaler Satz unverändert")
+let emphasis = "nein nein nein war meine Antwort"
+check(TranscriptHygiene.collapseRepetitions(emphasis) == emphasis, "De-Loop: 3x Einzelwort-Betonung bleibt (Schwelle 6)")
+
 // Auto-Modus: App → Stil
 check(AppStyleMapper.style(forBundleId: "com.apple.Terminal", name: nil) == .raw, "Auto-Modus: Terminal → roh")
 check(AppStyleMapper.style(forBundleId: "com.apple.mail", name: nil) == .email, "Auto-Modus: Mail → email")

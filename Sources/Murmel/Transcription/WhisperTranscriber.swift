@@ -84,7 +84,10 @@ final class WhisperTranscriber: Transcribing {
             "-l", language,
             "-nt",
             "-np",
-            "-sns"
+            "-sns",
+            // max-context 0: kein Text-Kontext über Segmentgrenzen → verhindert, dass sich
+            // eine Wiederholungsschleife („… die wir sind so viele …") aufschaukelt.
+            "-mc", "0"
         ]
         // Prompt-Biasing: lässt Whisper Eigennamen/Fachbegriffe direkt korrekt erkennen.
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
