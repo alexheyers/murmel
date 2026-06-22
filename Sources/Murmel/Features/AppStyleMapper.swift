@@ -27,10 +27,11 @@ enum AppStyleMapper {
                  "com.microsoft.outlook",
                  "com.readdle.smartemail-mac":
                 return .email
+            // Apple Notes ABSICHTLICH NICHT → Brainstorming: dort will man meist
+            // wörtliche Notizen, kein zu Stichpunkten umgeschriebenes (und langsames) Diktat.
             case "notion.id",
                  "md.obsidian",
-                 "net.shinyfrog.bear",
-                 "com.apple.notes":
+                 "net.shinyfrog.bear":
                 return .brainstorm
             default:
                 break
@@ -46,8 +47,7 @@ enum AppStyleMapper {
             if lower.contains("mail") || lower.contains("outlook") {
                 return .email
             }
-            if lower.contains("notion") || lower.contains("obsidian")
-                || lower.contains("bear") || lower.contains("notiz") {
+            if lower.contains("notion") || lower.contains("obsidian") {
                 return .brainstorm
             }
         }

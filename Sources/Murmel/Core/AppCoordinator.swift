@@ -25,6 +25,8 @@ final class AppCoordinator: ObservableObject {
     private let overlay = LiveOverlay()
     private var streamTimer: Timer?
     private var previewBusy = false
+    /// Zuletzt im Overlay gezeigte Vorschau — für den Anti-Flacker-Schutz.
+    private var lastPreviewText = ""
 
     // Auto-Modus: Ziel-App zum Aufnahme-Zeitpunkt merken (Murmel selbst stiehlt keinen
     // Fokus, aber der Wert wird stabil beim Drücken erfasst, nicht erst nach der Politur).
@@ -403,6 +405,7 @@ final class AppCoordinator: ObservableObject {
         Log.line("startStreaming() — streamingEnabled=\(settings.streamingEnabled)")
         overlay.show()
         previewBusy = false
+        lastPreviewText = ""
         // Server sicherstellen (idempotent — warm, falls schon gestartet).
         previewTranscriber.ensureRunning()
         // Schnellerer Takt: dank residentem Server kostet eine Vorschau nur ~0,1 s,
@@ -438,9 +441,11 @@ final class AppCoordinator: ObservableObject {
     /// transkribieren und ins Overlay schreiben. Überlappungen werden vermieden.
     private func streamingTick() {
         guard settings.streamingEnabled, phase == .recording, !previewBusy else { return }
-        // Gleitendes Fenster (letzte 10 s): hält die Vorschau auch bei langen Diktaten
-        // schnell — das Overlay zeigt ohnehin nur die zuletzt gesprochenen Worte.
-        guard let snap = recorder.snapshotWAV(maxSeconds: 10) else { return }
+        // GANZES bisher Aufgenommenes transkribieren (maxSeconds: 0). Ein gleitendes
+        // Fenster ließ das base-Modell pro Tick einen ANDEREN Audio-Ausschnitt dekodieren
+        // → die Vorschau flackerte (mal 170, mal 3 Zeichen). Ganzes Audio = monoton
+        // wachsend & stabil; der residente Server hält es schnell genug.
+        guard let snap = recorder.snapshotWAV(maxSeconds: 0) else { return }
         previewBusy = true
         let prompt = currentWhisperPrompt()
         Task { @MainActor in
@@ -448,9 +453,15 @@ final class AppCoordinator: ObservableObject {
             do {
                 let text = try await previewTranscriber.transcribe(snap, prompt: prompt)
                 try? FileManager.default.removeItem(at: snap)
-                // Nur den jüngsten Abschnitt zeigen; truncationMode(.head) im Overlay
-                // sorgt zusätzlich dafür, dass stets die zuletzt gesprochenen Worte sichtbar sind.
-                if phase == .recording, !text.isEmpty { overlay.update(String(text.suffix(400))) }
+                // Anti-Flacker: einen drastisch KÜRZEREN Tick (base-Modell-Ausreißer)
+                // ignorieren, statt die gewachsene Vorschau zurückzusetzen.
+                let drasticShrink = !lastPreviewText.isEmpty
+                    && text.count < (lastPreviewText.count * 6) / 10
+                    && lastPreviewText.count >= 20
+                if phase == .recording, !text.isEmpty, !drasticShrink {
+                    lastPreviewText = text
+                    overlay.update(String(text.suffix(400)))
+                }
                 Log.line("streamingTick: \(text.count) Zeichen Vorschau")
             } catch {
                 Log.line("streamingTick FEHLER: \(error.localizedDescription)")

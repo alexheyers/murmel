@@ -181,10 +181,10 @@ final class Settings: ObservableObject {
 
         self.streamingEnabled = defaults.bool(forKey: Keys.streaming)
 
-        // Auto-Modus standardmäßig AN (nur beim ersten Start, danach Nutzer-Wert respektieren).
-        self.autoStyleByApp = defaults.object(forKey: Keys.autoStyleByApp) == nil
-            ? true
-            : defaults.bool(forKey: Keys.autoStyleByApp)
+        // Auto-Modus standardmäßig AUS: Default ist schnelles, wörtliches Diktat überall
+        // (Politur-Modi wie Brainstorming kosten Ollama-Zeit und schreiben Gesprochenes um).
+        // Wer Auto-Stil will, schaltet ihn bewusst im Menü ein.
+        self.autoStyleByApp = defaults.bool(forKey: Keys.autoStyleByApp)
 
         self.speakAnswers = defaults.bool(forKey: Keys.speakAnswers)
 
