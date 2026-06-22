@@ -36,6 +36,8 @@ final class AppCoordinator: ObservableObject {
     /// Lokale Sprachausgabe (Zwei-Wege-Voice): liest Antworten vor.
     private let speaker = Speaker()
     private let hotkey: HotkeyMonitoring
+    /// Ersteinrichtung (prüft/installiert Infrastruktur) — für das Setup-Fenster.
+    let setupManager = SetupManager()
     /// Konkreter Store (ObservableObject) — wird auch von der Wörterbuch-UI beobachtet.
     let vocabulary: VocabularyStore
     private let history: HistoryStoring

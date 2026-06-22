@@ -30,6 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menubar-only: kein Dock-Icon.
         NSApp.setActivationPolicy(.accessory)
         coordinator.activate()
+
+        // Ersteinrichtung: fehlt Infrastruktur (whisper/Modelle/Ollama/Qwen),
+        // automatisch das Setup-Fenster zeigen — „App einmal starten, dann läuft es".
+        Task { @MainActor in
+            await coordinator.setupManager.checkAll()
+            if !coordinator.setupManager.isComplete {
+                SetupWindow.shared.show(coordinator.setupManager)
+            }
+        }
     }
 }
 

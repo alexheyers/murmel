@@ -47,6 +47,13 @@ struct MenuBarView: View {
                 Button("Vorlesen stoppen") { coordinator.stopSpeaking() }
             }
 
+            Button {
+                SetupWindow.shared.show(coordinator.setupManager)
+            } label: {
+                Label("Einrichtung & Status prüfen", systemImage: "wrench.and.screwdriver")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             Divider()
 
             footer

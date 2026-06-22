@@ -36,6 +36,25 @@ Funktioniert technisch in **jeder** App (Einfügen über Zwischenablage + ⌘V) 
 
 ---
 
+## Installation (Download — empfohlen)
+
+> Voraussetzung: macOS 14+ auf **Apple Silicon** und [Homebrew](https://brew.sh).
+
+1. Neueste **`Murmel-x.y.z.dmg`** unter [Releases](https://github.com/alexheyers/murmel/releases) laden, öffnen, **Murmel.app → Programme** ziehen.
+2. Die App ist selbst-signiert (kein 99 €/Jahr-Apple-Account) → Gatekeeper einmalig lösen:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Murmel.app
+   ```
+   (oder Rechtsklick auf die App → **Öffnen** → **Öffnen**)
+3. **Murmel starten.** Beim ersten Start öffnet sich die **Ersteinrichtung**: sie lädt
+   mit Zwischenfragen automatisch whisper.cpp, die Modelle (large-v3-turbo, VAD) und
+   Ollama + Qwen herunter — alles lokal, ~4 GB.
+4. Bedienungshilfen-Recht erteilen → **fn halten und sprechen.**
+
+> Die Einrichtung ist jederzeit über das Menüleisten-Icon → **„Einrichtung & Status prüfen"** erreichbar.
+
+---
+
 ## Installation (clone & build)
 
 > Voraussetzungen: macOS 14+ auf **Apple Silicon**, [Homebrew](https://brew.sh),
