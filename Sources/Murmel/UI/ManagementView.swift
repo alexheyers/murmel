@@ -1,6 +1,7 @@
 import SwiftUI
+import AppKit
 
-/// Verwaltungsfenster mit vier Tabs: Verlauf, Modi, Wörterbuch, Analyse.
+/// Verwaltungsfenster mit Tabs: Verlauf, Modi, Wörterbuch, Analyse, Wissen.
 struct ManagementView: View {
     @ObservedObject var coordinator: AppCoordinator
 
@@ -17,6 +18,9 @@ struct ManagementView: View {
 
             AnalyseTab(coordinator: coordinator)
                 .tabItem { Label("Analyse", systemImage: "waveform.and.magnifyingglass") }
+
+            WissenTab(coordinator: coordinator, settings: coordinator.settings)
+                .tabItem { Label("Wissen", systemImage: "brain.head.profile") }
         }
         .frame(width: 600, height: 540)
         .background(.regularMaterial)
@@ -355,6 +359,104 @@ private struct AnalyseTab: View {
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(tint.opacity(0.14), in: Capsule())
+    }
+}
+
+// MARK: - Wissen (RAG)
+
+private struct WissenTab: View {
+    @ObservedObject var coordinator: AppCoordinator
+    @ObservedObject var settings: Settings
+    @State private var indexing = false
+    @State private var status = ""
+    @State private var chunkCount = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Daten-Assistent (RAG): Murmel durchsucht DEINE Ordner & Diktate und fügt das Ergebnis am Cursor ein.")
+                .font(.caption).foregroundStyle(.secondary)
+            Text("Nutzung: im Tab Modi den Daten-Assistent (RAG) wählen, dann irgendwo fn halten und z.B. sagen: recherchiere meine LinkedIn-Strategie und füg sie ein.")
+                .font(.caption).foregroundStyle(.secondary)
+
+            HStack {
+                Text("Indexierte Ordner").font(.subheadline).bold()
+                Spacer()
+                Button { addFolder() } label: { Label("Ordner hinzufügen", systemImage: "plus") }
+                    .buttonStyle(.borderless)
+            }
+
+            if settings.knowledgeFolders.isEmpty {
+                Text("Noch keine Ordner. Füge z.B. deinen Notizen- oder Projektordner hinzu.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(settings.knowledgeFolders, id: \.self) { f in
+                            HStack(spacing: 8) {
+                                Image(systemName: "folder").foregroundStyle(.secondary)
+                                Text((f as NSString).lastPathComponent).fontWeight(.medium)
+                                Text(f).font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                                Spacer()
+                                Button(role: .destructive) { remove(f) } label: { Image(systemName: "trash") }
+                                    .buttonStyle(.borderless)
+                            }
+                            .padding(8)
+                            .background(.background.opacity(0.5), in: RoundedRectangle(cornerRadius: 9))
+                        }
+                    }
+                }
+                .frame(maxHeight: 150)
+            }
+
+            Divider()
+
+            HStack(spacing: 10) {
+                Button { runIndex() } label: {
+                    Label(indexing ? "Indexiere…" : "Index aktualisieren", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(indexing || settings.knowledgeFolders.isEmpty)
+                if indexing { ProgressView().controlSize(.small) }
+                Spacer()
+                Text("\(chunkCount) Häppchen").font(.caption).foregroundStyle(.secondary)
+            }
+            if !status.isEmpty {
+                Text(status).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .onAppear { chunkCount = coordinator.knowledgeChunkCount }
+    }
+
+    private func addFolder() {
+        let p = NSOpenPanel()
+        p.canChooseDirectories = true
+        p.canChooseFiles = false
+        p.allowsMultipleSelection = true
+        p.prompt = "Hinzufügen"
+        if p.runModal() == .OK {
+            var f = settings.knowledgeFolders
+            for url in p.urls where !f.contains(url.path) { f.append(url.path) }
+            settings.knowledgeFolders = f
+        }
+    }
+
+    private func remove(_ f: String) {
+        settings.knowledgeFolders.removeAll { $0 == f }
+    }
+
+    private func runIndex() {
+        indexing = true
+        status = "Lese Dateien & berechne Embeddings… (beim ersten Mal kann das dauern)"
+        Task {
+            let r = await coordinator.reindexKnowledge()
+            await MainActor.run {
+                indexing = false
+                chunkCount = coordinator.knowledgeChunkCount
+                status = "Fertig: \(r.filesIndexed) Dateien neu · \(r.skipped) unverändert · \(r.chunks) Häppchen · \(r.errors) Fehler."
+            }
+        }
     }
 }
 

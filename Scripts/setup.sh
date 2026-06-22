@@ -71,6 +71,10 @@ fi
 echo "▶︎ Stelle Politur-Modell sicher ($OLLAMA_MODEL)…"
 ollama pull "$OLLAMA_MODEL" || echo "⚠︎ Konnte $OLLAMA_MODEL nicht ziehen — später nachholen mit: ollama pull $OLLAMA_MODEL"
 
+EMBED_MODEL="nomic-embed-text"
+echo "▶︎ Stelle Embedding-Modell sicher ($EMBED_MODEL, ~270 MB — für den Daten-Assistenten/RAG)…"
+ollama pull "$EMBED_MODEL" || echo "⚠︎ Konnte $EMBED_MODEL nicht ziehen — später: ollama pull $EMBED_MODEL"
+
 echo ""
 echo "=== Setup abgeschlossen ==="
 echo "Tipp: Ollama muss laufen, damit die Politur greift (Stil ≠ Roh)."

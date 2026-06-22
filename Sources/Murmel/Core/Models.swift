@@ -23,6 +23,7 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     case command
     case assistant
     case summarize
+    case dataAssistant
 
     var id: String { rawValue }
 
@@ -39,6 +40,7 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .command:      return "Befehl (Zwischenablage)"
         case .assistant:    return "Assistent"
         case .summarize:    return "Zusammenfassen"
+        case .dataAssistant:return "Daten-Assistent (RAG)"
         }
     }
 
@@ -55,6 +57,7 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .command:      return "Text kopieren, Anweisung sprechen — wandelt den kopierten Text um."
         case .assistant:    return "Frage stellen — die Antwort wird eingefügt."
         case .summarize:    return "Langes Diktat → knappe Zusammenfassung."
+        case .dataAssistant:return "Auftrag sprechen — sucht in DEINEN Daten (RAG) und fügt das Ergebnis ein."
         }
     }
 
@@ -62,6 +65,8 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     var isTranslation: Bool { self == .translateEN || self == .translateDE }
     var isAssistant: Bool { self == .assistant }
     var isSummarize: Bool { self == .summarize }
+    /// Daten-Assistent: RAG über eigene Daten, Ergebnis am Cursor.
+    var isDataAssistant: Bool { self == .dataAssistant }
     /// Befehls-Modus: gesprochene Anweisung wird auf den ZWISCHENABLAGE-Text angewandt.
     var isCommand: Bool { self == .command }
     /// Modi, deren LLM-Eingabe die Zwischenablage ist (statt des Diktats).
@@ -105,14 +110,14 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
             return "Natürliches, idiomatisches Englisch."
         case .translateDE:
             return "Natürliches, idiomatisches Deutsch."
-        case .command, .assistant, .summarize:
+        case .command, .assistant, .summarize, .dataAssistant:
             return ""
         }
     }
 
     /// Ob dieser Modus eine editierbare Stil-Instruktion nutzt (für den Modi-Editor).
     var usesEditableInstruction: Bool {
-        usesPolish && !isCommand && !isAssistant && !isSummarize
+        usesPolish && !isCommand && !isAssistant && !isSummarize && !isDataAssistant
     }
 }
 
@@ -151,6 +156,36 @@ struct VoiceCommandResult: Equatable {
     static func passthrough(_ text: String) -> VoiceCommandResult {
         VoiceCommandResult(text: text, aborted: false)
     }
+}
+
+// MARK: - RAG / Daten-Assistent
+
+/// Ein gefundener Wissens-Ausschnitt (Treffer aus den eigenen Daten).
+struct RetrievedChunk: Equatable {
+    let path: String     // Datei-Pfad oder "history:<id>"
+    let source: String   // "file" | "history"
+    let text: String
+    let score: Double    // Cosine-Ähnlichkeit 0…1
+
+    /// Kurzer, anzeigbarer Quellname (Dateiname bzw. „Diktat-Verlauf").
+    var displayName: String {
+        if source == "history" { return "Diktat-Verlauf" }
+        return (path as NSString).lastPathComponent
+    }
+}
+
+/// Ergebnis des Daten-Assistenten: einzufügender Text + genutzte Quellen.
+struct AssistantResult: Equatable {
+    let text: String
+    let sources: [String]   // anzeigbare Quellnamen, dedupliziert
+}
+
+/// Status einer (Neu-)Indexierung.
+struct IndexResult: Equatable {
+    var filesIndexed: Int = 0
+    var chunks: Int = 0
+    var skipped: Int = 0       // unverändert (inkrementell übersprungen)
+    var errors: Int = 0
 }
 
 /// Fehler innerhalb von Murmel.

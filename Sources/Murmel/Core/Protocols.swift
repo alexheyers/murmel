@@ -78,6 +78,45 @@ protocol HistoryStoring: AnyObject {
     func search(_ query: String) -> [HistoryEntry]
 }
 
+// MARK: - RAG / Daten-Assistent
+//
+// Konkrete Klassen (Vertrag):
+//   EmbeddingClient   -> OllamaEmbeddingClient   (Datei Knowledge/OllamaEmbeddingClient.swift)
+//   KnowledgeStoring  -> KnowledgeStore          (Datei Knowledge/KnowledgeStore.swift)
+//   KnowledgeIndexing -> KnowledgeIndexer        (Datei Knowledge/KnowledgeIndexer.swift)
+//   DataAssisting     -> DataAssistant           (Datei Knowledge/DataAssistant.swift)
+
+/// Wandelt Text in einen Embedding-Vektor (lokal via Ollama).
+protocol EmbeddingClient: AnyObject {
+    /// nil bei Fehler / Ollama nicht erreichbar.
+    func embed(_ text: String) async -> [Float]?
+}
+
+/// Persistiert Wissens-Chunks samt Vektoren und sucht die ähnlichsten (SQLite).
+protocol KnowledgeStoring: AnyObject {
+    /// Letzte bekannte mtime eines Pfads (für inkrementelles Indexieren), nil wenn unbekannt.
+    func mtime(forPath path: String) -> Double?
+    /// Ersetzt ALLE Chunks eines Pfads durch die neuen (delete + insert).
+    func replace(path: String, source: String, mtime: Double, chunks: [(text: String, vector: [Float])])
+    /// Entfernt Chunks, deren `path` NICHT in `keepPaths` enthalten ist (gelöschte Dateien).
+    func prune(keepPaths: Set<String>)
+    /// Die k ähnlichsten Chunks zum Query-Vektor (Cosine-Similarity).
+    func search(queryVector: [Float], k: Int) -> [RetrievedChunk]
+    /// Bekannte Datei-Pfade (source=="file").
+    func knownFilePaths() -> Set<String>
+    var chunkCount: Int { get }
+}
+
+/// Indexiert Ordner + Diktat-Verlauf in den Store (inkrementell).
+protocol KnowledgeIndexing: AnyObject {
+    func reindex(folders: [String], history: [HistoryEntry]) async -> IndexResult
+}
+
+/// Beantwortet/erfüllt eine gesprochene Anweisung per RAG über die eigenen Daten.
+protocol DataAssisting: AnyObject {
+    func answer(instruction: String, topK: Int) async -> AssistantResult
+}
+
 /// Wertet gesprochene Befehle aus, BEVOR poliert wird.
 protocol VoiceCommandProcessing: AnyObject {
     /// "neue Zeile" → \n, "punkt" → ., "alles löschen"/"abbrechen" → aborted=true.

@@ -20,6 +20,9 @@ enum MurmelPaths {
     /// ~/.murmel/history.sqlite
     static var historyDB: URL { home.appendingPathComponent("history.sqlite") }
 
+    /// ~/.murmel/knowledge.sqlite (RAG-Index)
+    static var knowledgeDB: URL { home.appendingPathComponent("knowledge.sqlite") }
+
     /// Standard-Whisper-Modell.
     static var defaultModelFile: URL {
         modelsDir.appendingPathComponent("ggml-large-v3-turbo.bin")

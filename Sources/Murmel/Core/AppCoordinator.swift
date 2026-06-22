@@ -31,6 +31,11 @@ final class AppCoordinator: ObservableObject {
     private let history: HistoryStoring
     private let voiceCommands: VoiceCommandProcessing
 
+    // RAG / Daten-Assistent
+    private let knowledgeStore: KnowledgeStore
+    private let knowledgeIndexer: KnowledgeIndexing
+    private let dataAssistant: DataAssisting
+
     init() {
         MurmelPaths.ensureDirectories()
 
@@ -46,12 +51,22 @@ final class AppCoordinator: ObservableObject {
             modelPath: s.previewModelPath,
             language: s.language
         )
-        self.polisher = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel)
+        let pol = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel)
+        self.polisher = pol
         self.inserter = PasteboardInserter()
         self.hotkey = HotkeyMonitor(trigger: s.hotkeyTrigger)
         self.vocabulary = VocabularyStore()
         self.history = HistoryStore()
         self.voiceCommands = VoiceCommandProcessor()
+
+        // RAG-Bausteine: Embedding-Client + Store + Indexer + Daten-Assistent.
+        let emb = OllamaEmbeddingClient(baseURL: s.ollamaBaseURL, model: s.embedModel)
+        let kstore = KnowledgeStore()
+        self.knowledgeStore = kstore
+        self.knowledgeIndexer = KnowledgeIndexer(embedding: emb, store: kstore)
+        self.dataAssistant = DataAssistant(embedding: emb, store: kstore, complete: { system, user in
+            await pol.complete(system: system, user: user)
+        })
 
         wireHotkey()
     }
@@ -159,6 +174,31 @@ final class AppCoordinator: ObservableObject {
 
             // 3. Wörterbuch
             let corrected = vocabulary.correct(cmd.text)
+
+            // 3b. Daten-Assistent (RAG): eigener Pfad — sucht in den eigenen Daten und fügt das Ergebnis ein.
+            if settings.currentStyle.isDataAssistant {
+                phase = .polishing
+                Log.line("Daten-Assistent: \"\(corrected)\"")
+                let result = await dataAssistant.answer(instruction: corrected, topK: settings.ragTopK)
+                let answer = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !answer.isEmpty else {
+                    Log.line("Daten-Assistent: kein Ergebnis (Index leer / Ollama aus / nichts gefunden)")
+                    cleanup(wav); phase = .idle; Sounds.soft(); return
+                }
+                let targetApp = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
+                history.add(raw: raw, final: answer, style: .dataAssistant, app: targetApp)
+                phase = .inserting
+                Log.line("Daten-Assistent: füge ein (\(answer.count) Zeichen, Quellen: \(result.sources.joined(separator: ", ")))")
+                inserter.insert(answer)
+                Sounds.done()
+                if settings.streamingEnabled, !result.sources.isEmpty {
+                    overlay.update("Quellen: " + result.sources.joined(separator: ", "))
+                }
+                cleanup(wav)
+                phase = .idle
+                pipelineSucceeded = true
+                return
+            }
 
             // 4. Politur / Übersetzung / Befehl / Assistent / Zusammenfassen
             let style = settings.currentStyle
@@ -274,6 +314,17 @@ final class AppCoordinator: ObservableObject {
         }
         return out
     }
+
+    // MARK: - Wissen / RAG
+
+    /// Indexiert die konfigurierten Ordner + den Diktat-Verlauf neu (inkrementell).
+    func reindexKnowledge() async -> IndexResult {
+        await knowledgeIndexer.reindex(folders: settings.knowledgeFolders,
+                                       history: history.recent(limit: 2000))
+    }
+
+    /// Anzahl indexierter Wissens-Chunks (für die UI).
+    var knowledgeChunkCount: Int { knowledgeStore.chunkCount }
 
     // MARK: - Streaming-Vorschau
 

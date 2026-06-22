@@ -62,6 +62,34 @@ final class Settings: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.language) }
     }
 
+    // MARK: RAG / Daten-Assistent
+
+    /// Ordner, die der Daten-Assistent indexiert (Notizen, Code …).
+    var knowledgeFolders: [String] {
+        get {
+            guard let data = defaults.data(forKey: Keys.knowledgeFolders),
+                  let arr = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+            return arr
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue)
+            defaults.set(data, forKey: Keys.knowledgeFolders)
+            objectWillChange.send()
+        }
+    }
+
+    /// Lokales Embedding-Modell (Ollama).
+    var embedModel: String {
+        get { defaults.string(forKey: Keys.embedModel) ?? "nomic-embed-text" }
+        set { defaults.set(newValue, forKey: Keys.embedModel) }
+    }
+
+    /// Anzahl der Treffer, die als Kontext an Qwen gehen.
+    var ragTopK: Int {
+        get { let v = defaults.integer(forKey: Keys.ragTopK); return v == 0 ? 6 : v }
+        set { defaults.set(newValue, forKey: Keys.ragTopK) }
+    }
+
     // MARK: Init
 
     private init() {
@@ -153,5 +181,8 @@ final class Settings: ObservableObject {
         static let instrPrefix = "murmel.instr."
         static let streaming = "murmel.streaming"
         static let previewModel = "murmel.previewModel"
+        static let knowledgeFolders = "murmel.knowledgeFolders"
+        static let embedModel = "murmel.embedModel"
+        static let ragTopK = "murmel.ragTopK"
     }
 }
