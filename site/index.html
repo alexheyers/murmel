@@ -165,9 +165,6 @@ h2 em{font-style:italic;color:var(--coral)}
 .proof .kpis{display:flex;gap:2.4rem;flex-wrap:wrap;margin-top:2.6rem;border-top:1px solid rgba(246,241,233,.18);padding-top:1.8rem}
 .proof .kpi .v{font-family:var(--disp);font-weight:600;font-size:2.6rem;color:var(--coral-soft);line-height:1}
 .proof .kpi .l{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-top:.4rem}
-.proofshot{margin-top:2.6rem}
-.proofshot img{width:100%;display:block;border-radius:14px;border:1px solid rgba(246,241,233,.16);box-shadow:0 34px 70px -34px rgba(0,0,0,.6)}
-.proofshot figcaption{font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(246,241,233,.5);margin-top:1rem;text-align:center}
 
 .foot{padding:5rem 0 4rem}
 .foot .ready{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--teal)}
@@ -403,6 +400,41 @@ h2 em{font-style:italic;color:var(--coral)}
   </div>
 </section>
 
+<!-- RAG / DATEN-ASSISTENT -->
+<section class="blk wrap" id="rag">
+  <div class="lab rv">Neu · RAG</div>
+  <h2 class="rv" style="--d:.06s">Frag deine <em>eigenen Daten</em> — per Stimme.</h2>
+  <p class="intro rv" style="--d:.1s">Der größte Schritt: Murmel beantwortet nicht nur aus dem Allgemeinwissen des Modells, sondern aus <b>meinen eigenen Dateien und Diktaten</b>. Mitten im Schreiben sage ich z.&nbsp;B. <i>„recherchiere meine LinkedIn-Strategie und füg sie ein"</i> — und das Ergebnis landet am Cursor. Komplett lokal.</p>
+
+  <div class="cards">
+    <div class="capc rv" style="--d:.12s">
+      <div class="ic">was ist das</div>
+      <h4>RAG, einfach erklärt</h4>
+      <p><b>Retrieval-Augmented Generation</b> = „erst nachschlagen, dann antworten". Statt nur aus dem Training zu raten, holt Murmel die passenden Stellen aus deinen Daten und gibt sie dem Modell als Kontext mit.</p>
+    </div>
+    <div class="capc rv" style="--d:.16s">
+      <div class="ic">deine quellen</div>
+      <h4>Ordner + Diktat-Verlauf</h4>
+      <p>Du wählst Ordner (Notizen, Code, Docs). Murmel indexiert sie lokal — inkrementell, nur Geändertes neu. Der Diktat-Verlauf ist auch dabei.</p>
+    </div>
+    <div class="capc rv" style="--d:.2s">
+      <div class="ic">100% lokal</div>
+      <h4>Kein Byte in die Cloud</h4>
+      <p>Embeddings via <b>nomic-embed-text</b> (lokal in Ollama), Vektoren in SQLite, Antwort via Qwen. Privat, offline, 0&nbsp;€ — auch deine Daten bleiben bei dir.</p>
+    </div>
+  </div>
+
+  <div class="term rv" style="--d:.16s">
+    <div class="bar"><i></i><i></i><i></i><span class="t">so läuft eine RAG-Anfrage</span></div>
+<pre><span class="cl-d"># im Text, fn halten und sprechen:</span>
+<span class="cl-g">you&gt;</span> <span class="cl-t">„recherchiere meine LinkedIn-Strategie und füg sie ein"</span>
+<span class="cl-d">  1.</span> Frage → Embedding (nomic-embed-text, lokal)
+<span class="cl-d">  2.</span> ähnlichste Stellen aus deinen Daten finden  <span class="cl-d">(Cosine-Similarity)</span>
+<span class="cl-d">  3.</span> Qwen formuliert MIT diesem Kontext
+<span class="cl-a">✓</span> <span class="cl-t">Ergebnis am Cursor eingefügt · Quellen im Overlay sichtbar</span></pre>
+  </div>
+</section>
+
 <!-- AUF APPLE GEBAUT -->
 <section class="blk wrap" id="apple">
   <div class="lab rv">Auf Apple gebaut</div>
@@ -499,10 +531,6 @@ h2 em{font-style:italic;color:var(--coral)}
     <div class="lab"><span class="no">05</span> Was es beweist</div>
     <h2>Ich nutze KI nicht nur — ich baue mir <em>eigene Software.</em></h2>
     <p class="intro">Eine native macOS-App ohne Code-Hintergrund, end-to-end: Audio, Spracherkennung, lokales LLM, globaler Hotkey, Datenbank, Code-Signierung. Geplant, orchestriert, debuggt und ausgeliefert — als Open-Source, das andere klonen und selbst bauen können.</p>
-    <figure class="proofshot rv" style="--d:.08s">
-      <img src="murmel-app.jpg" alt="Murmel fertig: Panel in der Menüleiste über der Session, in der es gebaut wurde" loading="lazy">
-      <figcaption>// Fertig — oben Murmel in der Menüleiste (Live-Vorschau, Modi, Verlauf), darunter das Terminal, in dem es Stück für Stück entstand</figcaption>
-    </figure>
     <div class="pgrid">
       <div class="pg">
         <span class="num">Native Engineering</span>
@@ -526,6 +554,14 @@ h2 em{font-style:italic;color:var(--coral)}
       <div class="kpi"><div class="v">0 €</div><div class="l">laufende Kosten · 100% lokal</div></div>
     </div>
   </div>
+</section>
+
+<!-- ABSCHLUSS-BILD -->
+<section class="wrap" style="margin:1.5rem 0 .5rem">
+  <figure class="liveshot rv">
+    <img src="murmel-app.jpg" alt="Murmel fertig: Panel in der Menüleiste über der Session, in der es gebaut wurde" loading="lazy">
+    <figcaption>// Fertig — oben Murmel in der Menüleiste (Live-Vorschau, Modi, Verlauf), darunter das Terminal, in dem es Stück für Stück entstand</figcaption>
+  </figure>
 </section>
 
 <!-- FOOTER -->
