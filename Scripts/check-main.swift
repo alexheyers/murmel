@@ -41,5 +41,26 @@ let an = SpeechAnalyzer.analyze(entries)
 check(an.dictations == 2, "Analyse: 2 Diktate erkannt")
 check(an.fillers.first?.word == "ähm", "Analyse: Füllwort ähm erkannt")
 
+// whisper-server-Vorschau: reine Logik (ohne laufenden Server testbar)
+let jsonResp = #"{"text":" Dies ist ein Test.\n"}"#.data(using: .utf8)!
+check(WhisperServerTranscriber.parseText(jsonResp) == "Dies ist ein Test.",
+      "whisper-server: JSON {text} geparst + getrimmt")
+
+let plainResp = " nur klartext \n".data(using: .utf8)!
+check(WhisperServerTranscriber.parseText(plainResp) == "nur klartext",
+      "whisper-server: Klartext-Fallback getrimmt")
+
+let mp = WhisperServerTranscriber.multipartBody(boundary: "B", audio: Data([0x52, 0x49]), language: "de")
+let mpStr = String(data: mp, encoding: .utf8) ?? ""
+check(mpStr.contains("name=\"file\"; filename=\"audio.wav\"")
+      && mpStr.contains("name=\"language\"\r\n\r\nde")
+      && mpStr.contains("name=\"response_format\"\r\n\r\njson")
+      && mpStr.hasSuffix("--B--\r\n"),
+      "whisper-server: multipart-Body korrekt")
+
+let srv = WhisperServerTranscriber(binaryPath: "/x", modelPath: "/y", language: "de", host: "127.0.0.1", port: 8771)
+check(srv.inferenceURL.absoluteString == "http://127.0.0.1:8771/inference",
+      "whisper-server: inferenceURL korrekt aufgebaut")
+
 print(failures == 0 ? "\nALLE CHECKS GRÜN" : "\n\(failures) CHECK(S) FEHLGESCHLAGEN")
 exit(failures == 0 ? 0 : 1)

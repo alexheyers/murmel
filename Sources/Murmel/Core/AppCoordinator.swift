@@ -16,8 +16,9 @@ final class AppCoordinator: ObservableObject {
     // Komponenten (konkrete Klassen kommen aus den Einzeldateien).
     private let recorder: AudioRecording
     private let transcriber: Transcribing
-    /// Schnelles base-Modell für die Live-Vorschau (Streaming).
-    private let previewTranscriber: WhisperTranscriber
+    /// Live-Vorschau (Streaming) über einen residenten whisper-server (base-Modell).
+    /// Fällt intern auf eine kalte whisper-cli zurück, falls der Server nicht läuft.
+    private let previewTranscriber: WhisperServerTranscriber
     private let polisher: OllamaPolisher
 
     // Streaming-Vorschau
@@ -46,10 +47,21 @@ final class AppCoordinator: ObservableObject {
             modelPath: s.whisperModelPath,
             language: s.language
         )
-        self.previewTranscriber = WhisperTranscriber(
+        // Vorschau: residenter Server (schnell, Modell bleibt geladen). Als Fallback
+        // eine kalte whisper-cli mit demselben Vorschau-Modell — so funktioniert die
+        // Vorschau auch dann, wenn der Server (noch) nicht erreichbar ist.
+        let previewCLI = WhisperTranscriber(
             binaryPath: s.whisperBinaryPath,
             modelPath: s.previewModelPath,
             language: s.language
+        )
+        self.previewTranscriber = WhisperServerTranscriber(
+            binaryPath: s.whisperServerBinaryPath,
+            modelPath: s.previewModelPath,
+            language: s.language,
+            host: s.whisperServerHost,
+            port: s.whisperServerPort,
+            fallback: previewCLI
         )
         let pol = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel)
         self.polisher = pol
@@ -69,6 +81,17 @@ final class AppCoordinator: ObservableObject {
         })
 
         wireHotkey()
+
+        // Vorschau-Server beim App-Beenden sauber stoppen (Process-Kinder sterben auf
+        // macOS NICHT automatisch mit dem Elternprozess → sonst Zombie auf dem Port).
+        // Den (thread-sicheren) Transcriber direkt capturen, nicht self → keine
+        // MainActor-Isolation im @Sendable-Callback.
+        let preview = previewTranscriber
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { _ in
+            preview.shutdown()
+        }
     }
 
     // MARK: - Start
@@ -80,6 +103,9 @@ final class AppCoordinator: ObservableObject {
             Permissions.requestAccessibility()
         }
         startHotkey()
+        // Vorschau-Server vorwärmen, damit das Modell schon vor dem ersten Diktat
+        // geladen ist (sonst zahlt das erste Diktat den Ladevorgang).
+        if settings.streamingEnabled { previewTranscriber.ensureRunning() }
     }
 
     func startHotkey() {
@@ -331,7 +357,12 @@ final class AppCoordinator: ObservableObject {
     private func startStreaming() {
         overlay.show()
         previewBusy = false
-        let t = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        // Server sicherstellen (idempotent — warm, falls schon gestartet).
+        previewTranscriber.ensureRunning()
+        // Schnellerer Takt: dank residentem Server kostet eine Vorschau nur ~0,1 s,
+        // also kann das Overlay flüssiger mitlaufen. Die previewBusy-Sperre drosselt
+        // automatisch, falls ein Lauf (bei langem Audio) mal länger als der Takt dauert.
+        let t = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.streamingTick() }
         }
         streamTimer = t

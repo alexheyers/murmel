@@ -33,6 +33,25 @@ final class Settings: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.previewModel) }
     }
 
+    /// Pfad zur `whisper-server`-Binary (residenter Server für die Live-Vorschau).
+    var whisperServerBinaryPath: String {
+        get { defaults.string(forKey: Keys.whisperServerBin) ?? Self.detectWhisperServerBinary() }
+        set { defaults.set(newValue, forKey: Keys.whisperServerBin) }
+    }
+
+    /// Host des Vorschau-Servers (nur localhost — bleibt rein lokal).
+    var whisperServerHost: String {
+        get { defaults.string(forKey: Keys.whisperServerHost) ?? "127.0.0.1" }
+        set { defaults.set(newValue, forKey: Keys.whisperServerHost) }
+    }
+
+    /// Port des Vorschau-Servers. Ungewöhnlicher Default (8771), um Kollisionen
+    /// mit dem whisper.cpp-Standardport 8080 zu vermeiden.
+    var whisperServerPort: Int {
+        get { let v = defaults.integer(forKey: Keys.whisperServerPort); return v == 0 ? 8771 : v }
+        set { defaults.set(newValue, forKey: Keys.whisperServerPort) }
+    }
+
     // MARK: Pfade & externe Tools (mit sinnvollen Defaults)
 
     /// Pfad zur whisper-cli-Binary. Sucht Homebrew (arm64 + intel) ab.
@@ -170,6 +189,16 @@ final class Settings: ObservableObject {
         return candidates.first { fm.isExecutableFile(atPath: $0) } ?? "/opt/homebrew/bin/whisper-cli"
     }
 
+    /// Sucht die `whisper-server`-Binary (Teil von whisper-cpp, gleiche Homebrew-Pfade).
+    static func detectWhisperServerBinary() -> String {
+        let candidates = [
+            "/opt/homebrew/bin/whisper-server",
+            "/usr/local/bin/whisper-server"
+        ]
+        let fm = FileManager.default
+        return candidates.first { fm.isExecutableFile(atPath: $0) } ?? "/opt/homebrew/bin/whisper-server"
+    }
+
     private enum Keys {
         static let style = "murmel.style"
         static let trigger = "murmel.trigger"
@@ -181,6 +210,9 @@ final class Settings: ObservableObject {
         static let instrPrefix = "murmel.instr."
         static let streaming = "murmel.streaming"
         static let previewModel = "murmel.previewModel"
+        static let whisperServerBin = "murmel.whisperServerBin"
+        static let whisperServerHost = "murmel.whisperServerHost"
+        static let whisperServerPort = "murmel.whisperServerPort"
         static let knowledgeFolders = "murmel.knowledgeFolders"
         static let embedModel = "murmel.embedModel"
         static let ragTopK = "murmel.ragTopK"

@@ -22,6 +22,7 @@ swiftc -o "$OUT" \
     Sources/Murmel/Features/VoiceCommandProcessor.swift \
     Sources/Murmel/Features/SpeechAnalyzer.swift \
     Sources/Murmel/Polish/OllamaPolisher.swift \
+    Sources/Murmel/Transcription/WhisperServerTranscriber.swift \
     "$TMP/main.swift"
 
 echo "--- Murmel Selbsttest ---"

@@ -1,7 +1,8 @@
 # Murmel — Session-Übergabe
 
 > Laufende Übergabe-Doku. Beim nächsten Start zuerst lesen.
-> **Stand: 2026-06-21 (Abend).** Murmel läuft end-to-end, installiert, alles committet & gepusht.
+> **Stand: 2026-06-22.** Murmel läuft end-to-end, installiert, alles committet & gepusht.
+> **Neu (22.06.):** Live-Vorschau läuft jetzt über einen **residenten `whisper-server`** statt kalter `whisper-cli` pro Tick → ~3× schneller pro Update (gemessen 0,11 s statt 0,35 s), Takt von 1,5 s → 0,7 s. Finaler Diktat-Lauf (large-v3-turbo) unverändert.
 
 ---
 
@@ -33,7 +34,7 @@ cp -R dist/Murmel.app /Applications/ && open /Applications/Murmel.app
 - **Assistent** (Frage→Antwort) · **Zusammenfassen**
 - **Wörterbuch-Editor** + **Auto-Vorschläge** (Ollama aus Verlauf)
 - **Verlauf** (SQLite, durchsuchbar) · **Sprachanalyse** (Wörter/Satz, Füllwörter, Top-Begriffe, **Wo/Top-Apps**)
-- **Live-Vorschau (Streaming)** — schwebendes Overlay beim Sprechen (base-Modell), final mit large-v3-turbo
+- **Live-Vorschau (Streaming)** — schwebendes Overlay beim Sprechen (base-Modell via **residentem `whisper-server`**, Fallback auf `whisper-cli`), final mit large-v3-turbo
 - Glas-/Apple-Look (Panel + Verwaltungsfenster mit 4 Tabs)
 
 ## Wichtige Gotchas (nicht zurückbauen!)
@@ -42,6 +43,7 @@ cp -R dist/Murmel.app /Applications/ && open /Applications/Murmel.app
 2. **iCloud-Detritus:** Projekt liegt unter ~/Documents (iCloud) → `codesign` lehnt das Bundle sonst ab. `make-app.sh` baut+signiert deshalb in `mktemp -d` und kopiert dann per `ditto` nach dist/.
 3. **Politur gezähmt:** Standard-Stil = `.raw`. Polish via Ollama-Chat-API + strikter System-Prompt + Halluzinations-Längen-Guard (nur für Korrektur/Übersetzung).
 4. **Metriken bleiben 100 % lokal** (SQLite). Bewusste Entscheidung — KEIN Notion/Cloud (höchstens optionaler anonymer Aggregat-Sync, falls explizit gewünscht).
+5. **Vorschau-Server (`WhisperServerTranscriber`):** residenter `whisper-server` auf `127.0.0.1:8771` (base-Modell), Start beim App-Launch (wenn Streaming an), Stop bei App-Terminate. Sprache wird **pro Anfrage** (`language`-Feld) mitgeschickt → ein laufender Server ist sprachunabhängig sicher. Fällt bei Nichterreichbarkeit automatisch auf `whisper-cli` zurück (Vorschau bleibt immer funktionsfähig; Server ist reine Beschleunigung). Verwaiste Server (nach SIGKILL/Crash) werden beim nächsten Start **adoptiert** statt doppelt gestartet. Nicht zurückbauen: finaler Lauf bleibt `whisper-cli`/large-v3-turbo.
 
 ## Doku & Deploys (heute aktualisiert)
 
@@ -53,11 +55,12 @@ cp -R dist/Murmel.app /Applications/ && open /Applications/Murmel.app
 
 ## Offene Punkte / Nächste Ideen
 
-- [ ] **Streaming-Overlay visuell prüfen** — Build/Logik/Modell verifiziert, aber das HUD konnte headless nicht gesehen werden. Alex testen lassen; ggf. Takt (1,5s) / Position feinjustieren.
+- [ ] **Streaming-Overlay visuell prüfen** — Build/Logik/Modell/Server-Pfad verifiziert (inkl. echtem End-to-End-Integrationstest gegen `whisper-server`), aber das HUD konnte headless nicht gesehen werden. Alex testen lassen; Takt ist jetzt 0,7s — ggf. Position feinjustieren. **App neu bauen+installieren nötig** (`make-app.sh`), damit die Server-Vorschau greift.
 - [ ] **App-Tracking füllt sich erst ab jetzt** — die ~52 Altdiktate haben kein „wo". Nach neuen Diktaten „Top-Apps" prüfen.
 - [ ] **Optional:** anonymer Notion-Aggregat-Sync (nur Kennzahlen, keine Texte) — Alex hatte's erwogen, vorerst lokal belassen.
 - [ ] **Optional:** `praesentation.html` als eigene Vercel-URL deployen + als LinkedIn-Carousel aufbereiten.
-- [ ] **Streaming dedizierter Ausbau:** evtl. whisper-server (resident) statt per-Chunk whisper-cli für flüssigere Vorschau.
+- [x] **Streaming dedizierter Ausbau:** ✅ ERLEDIGT 22.06. — residenter `whisper-server` statt per-Chunk `whisper-cli` (`WhisperServerTranscriber`). ~3× schneller pro Update.
+- [ ] **Echtes inkrementelles Streaming (Stufe 2):** Der Server killt nur den Kaltstart — re-transkribiert pro Tick noch das GESAMTE bisherige Audio. Für noch flüssigere Vorschau bei langen Diktaten: gleitendes Fenster / VAD, nur das neue Audio verarbeiten.
 
 ## Verifikation/Fakten (geprüft)
 

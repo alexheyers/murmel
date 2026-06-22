@@ -29,3 +29,4 @@ Wenn die Session in diesem Repo startet **oder** Alex „**starte Murmel**" sagt
 - Stabile Signatur „Murmel Code Signing" (sonst stirbt das macOS-Recht bei Rebuilds).
 - Standard-Stil `.raw`; Politur via Ollama mit striktem Prompt + Halluzinations-Guard.
 - **Metriken bleiben 100 % lokal** (SQLite) — kein Notion/Cloud ohne ausdrückliche Ansage.
+- **Live-Vorschau = residenter `whisper-server`** (`WhisperServerTranscriber`, `127.0.0.1:8771`, base-Modell), Fallback auf `whisper-cli`. Sprache pro Anfrage mitschicken. Finaler Lauf bleibt `whisper-cli`/large-v3-turbo — NICHT auf den Server umstellen.

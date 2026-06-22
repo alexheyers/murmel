@@ -23,12 +23,20 @@ if ! command -v brew >/dev/null 2>&1; then
 fi
 echo "✓ Homebrew vorhanden"
 
-# 2) whisper.cpp
+# 2) whisper.cpp (liefert whisper-cli UND whisper-server)
 if ! command -v whisper-cli >/dev/null 2>&1 && ! command -v whisper-cpp >/dev/null 2>&1; then
     echo "▶︎ Installiere whisper-cpp…"
     brew install whisper-cpp
 else
     echo "✓ whisper.cpp vorhanden"
+fi
+
+# 2b) whisper-server — residenter Server für die schnelle Live-Vorschau (Teil von whisper-cpp)
+if command -v whisper-server >/dev/null 2>&1; then
+    echo "✓ whisper-server vorhanden (residente Live-Vorschau)"
+else
+    echo "⚠︎ whisper-server fehlt — Live-Vorschau fällt auf (langsamere) whisper-cli zurück."
+    echo "  Tipp: 'brew reinstall whisper-cpp' installiert whisper-server mit."
 fi
 
 # 3) Whisper-Modell
