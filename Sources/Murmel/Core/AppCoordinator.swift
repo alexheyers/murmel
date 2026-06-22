@@ -45,7 +45,8 @@ final class AppCoordinator: ObservableObject {
         self.transcriber = WhisperTranscriber(
             binaryPath: s.whisperBinaryPath,
             modelPath: s.whisperModelPath,
-            language: s.language
+            language: s.language,
+            vadModelPath: s.vadModelPath   // genutzt, falls die Datei existiert
         )
         // Vorschau: residenter Server (schnell, Modell bleibt geladen). Als Fallback
         // eine kalte whisper-cli mit demselben Vorschau-Modell — so funktioniert die
@@ -178,11 +179,14 @@ final class AppCoordinator: ObservableObject {
             return
         }
         do {
-            // 1. Transkription
+            // 1. Transkription (mit Prompt-Biasing auf Eigennamen/Fachbegriffe)
             Log.line("Pipeline: transkribiere \(wav.lastPathComponent)…")
-            let raw = try await transcriber.transcribe(wav)
+            let raw = try await transcriber.transcribe(wav, prompt: currentWhisperPrompt())
             Log.line("Pipeline: Rohtext = \"\(raw)\"")
-            guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            let trimmedRaw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Leere Erkennung ODER reine Halluzination (z.B. „*Piep*" bei Stille) → nichts einfügen.
+            guard !trimmedRaw.isEmpty, !TranscriptHygiene.isLikelyHallucination(trimmedRaw) else {
+                if !trimmedRaw.isEmpty { Log.line("Pipeline: Halluzination verworfen (\"\(trimmedRaw)\")") }
                 cleanup(wav)
                 phase = .idle
                 Sounds.soft()
@@ -393,12 +397,15 @@ final class AppCoordinator: ObservableObject {
     /// transkribieren und ins Overlay schreiben. Überlappungen werden vermieden.
     private func streamingTick() {
         guard settings.streamingEnabled, phase == .recording, !previewBusy else { return }
-        guard let snap = recorder.snapshotWAV() else { return }
+        // Gleitendes Fenster (letzte 10 s): hält die Vorschau auch bei langen Diktaten
+        // schnell — das Overlay zeigt ohnehin nur die zuletzt gesprochenen Worte.
+        guard let snap = recorder.snapshotWAV(maxSeconds: 10) else { return }
         previewBusy = true
+        let prompt = currentWhisperPrompt()
         Task { @MainActor in
             defer { previewBusy = false }
             do {
-                let text = try await previewTranscriber.transcribe(snap)
+                let text = try await previewTranscriber.transcribe(snap, prompt: prompt)
                 try? FileManager.default.removeItem(at: snap)
                 // Nur den jüngsten Abschnitt zeigen; truncationMode(.head) im Overlay
                 // sorgt zusätzlich dafür, dass stets die zuletzt gesprochenen Worte sichtbar sind.
@@ -409,6 +416,24 @@ final class AppCoordinator: ObservableObject {
                 try? FileManager.default.removeItem(at: snap)
             }
         }
+    }
+
+    // MARK: - Whisper-Prompt-Biasing
+
+    /// Baut den „initial prompt" für Whisper: Eigennamen + Wörterbuch-Begriffe +
+    /// gängige Slash-Befehle. Dadurch erkennt Whisper diese Begriffe direkt korrekt,
+    /// statt sie hinterher per Wörterbuch reparieren zu müssen.
+    private func currentWhisperPrompt() -> String {
+        let proper = ["Murmel", "Claude Code", "n8n", "Supabase", "Ollama", "Vercel", "GitHub"]
+        let commands = ["context", "clear", "commit", "review", "compact", "model"]
+        // Wörterbuch-Zielbegriffe ergänzen, Duplikate raus, Reihenfolge stabil.
+        var seen = Set<String>()
+        var names: [String] = []
+        for term in proper + vocabulary.terms where seen.insert(term.lowercased()).inserted {
+            names.append(term)
+        }
+        return "Kontext (Eigennamen/Fachbegriffe): " + names.joined(separator: ", ")
+            + ". Slash-Befehle: " + commands.joined(separator: ", ") + "."
     }
 
     // MARK: - Helpers

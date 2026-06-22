@@ -75,5 +75,12 @@ let srv = WhisperServerTranscriber(binaryPath: "/x", modelPath: "/y", language: 
 check(srv.inferenceURL.absoluteString == "http://127.0.0.1:8771/inference",
       "whisper-server: inferenceURL korrekt aufgebaut")
 
+// Anti-Halluzination (Stille-Artefakte)
+check(TranscriptHygiene.isLikelyHallucination("*Piep*"), "Halluzination: *Piep* erkannt")
+check(TranscriptHygiene.isLikelyHallucination("[Musik]"), "Halluzination: [Musik] erkannt")
+check(TranscriptHygiene.isLikelyHallucination("Untertitel der Amara.org-Community"), "Halluzination: Amara-Untertitel erkannt")
+check(!TranscriptHygiene.isLikelyHallucination("Das ist ein echter Satz."), "Echter Satz NICHT als Halluzination")
+check(!TranscriptHygiene.isLikelyHallucination("Vielen Dank."), "‚Vielen Dank.' bleibt erhalten (kein Falsch-Filter)")
+
 print(failures == 0 ? "\nALLE CHECKS GRÜN" : "\n\(failures) CHECK(S) FEHLGESCHLAGEN")
 exit(failures == 0 ? 0 : 1)

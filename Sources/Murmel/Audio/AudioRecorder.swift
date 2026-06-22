@@ -278,10 +278,23 @@ final class AudioRecorder: AudioRecording {
 
     /// Schreibt die bisher aufgenommenen Samples in eine temporäre WAV — ohne die
     /// laufende Aufnahme zu beeinflussen. Für die Streaming-Vorschau.
-    func snapshotWAV() -> URL? {
-        let samples: [Float] = stateQueue.sync { pcmSamples }
+    ///
+    /// - Parameter maxSeconds: Wenn > 0, wird nur das **letzte** Zeitfenster dieser Länge
+    ///   transkribiert (gleitendes Fenster). Das hält jede Vorschau-Transkription auch bei
+    ///   langen Diktaten schnell — die Vorschau zeigt ohnehin nur die zuletzt gesprochenen
+    ///   Worte. Der FINALE Lauf nutzt weiterhin die komplette Aufnahme (separate Datei).
+    func snapshotWAV(maxSeconds: Double = 0) -> URL? {
+        var samples: [Float] = stateQueue.sync { pcmSamples }
         // Mindestens ~0,4 s Audio, sonst lohnt die Transkription nicht.
         guard samples.count >= Int(targetSampleRate * 0.4) else { return nil }
+
+        // Gleitendes Fenster: nur die letzten `maxSeconds` behalten.
+        if maxSeconds > 0 {
+            let windowFrames = Int(targetSampleRate * maxSeconds)
+            if samples.count > windowFrames {
+                samples = Array(samples.suffix(windowFrames))
+            }
+        }
 
         guard
             let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32,

@@ -141,17 +141,17 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
 
     // MARK: - Transcribing
 
-    func transcribe(_ wav: URL) async throws -> String {
+    func transcribe(_ wav: URL, prompt: String = "") async throws -> String {
         do {
-            return try await transcribeViaServer(wav)
+            return try await transcribeViaServer(wav, prompt: prompt)
         } catch {
             // Server nicht erreichbar / Fehler → Vorschau über CLI retten, statt zu scheitern.
-            if let fallback { return try await fallback.transcribe(wav) }
+            if let fallback { return try await fallback.transcribe(wav, prompt: prompt) }
             throw error
         }
     }
 
-    private func transcribeViaServer(_ wav: URL) async throws -> String {
+    private func transcribeViaServer(_ wav: URL, prompt: String) async throws -> String {
         let audio = try Data(contentsOf: wav)
         let boundary = "MurmelBoundary-\(UUID().uuidString)"
 
@@ -159,7 +159,7 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
         req.httpMethod = "POST"
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
-        let body = Self.multipartBody(boundary: boundary, audio: audio, language: language)
+        let body = Self.multipartBody(boundary: boundary, audio: audio, language: language, prompt: prompt)
         let (data, response) = try await session.upload(for: req, from: body)
 
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -172,8 +172,9 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
     // MARK: - Hilfsfunktionen (statisch + testbar)
 
     /// Baut den multipart/form-data-Body für `POST /inference`.
-    /// Felder: `file` (WAV), `response_format=json`, `language`, `temperature=0.0`.
-    static func multipartBody(boundary: String, audio: Data, language: String) -> Data {
+    /// Felder: `file` (WAV), `response_format=json`, `language`, `temperature=0.0`,
+    /// optional `prompt` (Biasing auf Eigennamen/Fachbegriffe).
+    static func multipartBody(boundary: String, audio: Data, language: String, prompt: String = "") -> Data {
         var body = Data()
         let dashes = "--\(boundary)\r\n"
 
@@ -193,6 +194,8 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
         appendField("response_format", "json")
         appendField("language", language)
         appendField("temperature", "0.0")
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedPrompt.isEmpty { appendField("prompt", trimmedPrompt) }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         return body

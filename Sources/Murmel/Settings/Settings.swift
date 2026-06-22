@@ -33,6 +33,14 @@ final class Settings: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.previewModel) }
     }
 
+    /// Pfad zum VAD-Modell (Silero). Existiert die Datei, aktiviert der finale
+    /// Transcriber Voice-Activity-Detection → weniger Halluzinationen bei Stille.
+    /// Wird optional von `setup.sh` heruntergeladen.
+    var vadModelPath: String {
+        get { defaults.string(forKey: Keys.vadModel) ?? MurmelPaths.modelsDir.appendingPathComponent("ggml-silero-v5.1.2.bin").path }
+        set { defaults.set(newValue, forKey: Keys.vadModel) }
+    }
+
     /// Pfad zur `whisper-server`-Binary (residenter Server für die Live-Vorschau).
     var whisperServerBinaryPath: String {
         get { defaults.string(forKey: Keys.whisperServerBin) ?? Self.detectWhisperServerBinary() }
@@ -210,6 +218,7 @@ final class Settings: ObservableObject {
         static let instrPrefix = "murmel.instr."
         static let streaming = "murmel.streaming"
         static let previewModel = "murmel.previewModel"
+        static let vadModel = "murmel.vadModel"
         static let whisperServerBin = "murmel.whisperServerBin"
         static let whisperServerHost = "murmel.whisperServerHost"
         static let whisperServerPort = "murmel.whisperServerPort"

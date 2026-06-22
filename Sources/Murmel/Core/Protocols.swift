@@ -22,14 +22,19 @@ protocol AudioRecording: AnyObject {
     func stopRecording() -> URL?
     /// Schreibt das bisher Aufgenommene in eine temporäre WAV (für Live-Vorschau),
     /// ohne die laufende Aufnahme zu stoppen. nil, wenn (noch) zu wenig Audio da ist.
-    func snapshotWAV() -> URL?
+    /// - Parameter maxSeconds: >0 → nur das letzte Zeitfenster dieser Länge (gleitendes
+    ///   Fenster für schnelle Vorschau bei langen Diktaten); 0 → alles bisher Aufgenommene.
+    func snapshotWAV(maxSeconds: Double) -> URL?
 }
 
 /// Wandelt eine WAV-Datei in Text (whisper.cpp).
 protocol Transcribing: AnyObject {
-    /// - Parameter wav: Pfad zur 16-kHz-Mono-WAV.
+    /// - Parameters:
+    ///   - wav: Pfad zur 16-kHz-Mono-WAV.
+    ///   - prompt: optionaler „initial prompt" zum Biasing (Eigennamen/Fachbegriffe,
+    ///     damit Whisper sie direkt korrekt erkennt). Leerstring = kein Biasing.
     /// - Returns: erkannter Rohtext (getrimmt).
-    func transcribe(_ wav: URL) async throws -> String
+    func transcribe(_ wav: URL, prompt: String) async throws -> String
 }
 
 /// Räumt den Rohtext über ein lokales LLM (Ollama) auf.

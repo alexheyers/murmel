@@ -13,16 +13,20 @@ final class WhisperTranscriber: Transcribing {
     private let modelPath: String
     /// Sprachcode für Whisper (z.B. "de", "en", "auto").
     private let language: String
+    /// Optionaler VAD-Modellpfad. Existiert die Datei, wird Voice-Activity-Detection
+    /// aktiviert (`--vad --vad-model`), was Halluzinationen bei Stille zusätzlich reduziert.
+    private let vadModelPath: String?
 
-    init(binaryPath: String, modelPath: String, language: String) {
+    init(binaryPath: String, modelPath: String, language: String, vadModelPath: String? = nil) {
         self.binaryPath = binaryPath
         self.modelPath = modelPath
         self.language = language
+        self.vadModelPath = vadModelPath
     }
 
     // MARK: - Transcribing
 
-    func transcribe(_ wav: URL) async throws -> String {
+    func transcribe(_ wav: URL, prompt: String = "") async throws -> String {
         let fm = FileManager.default
 
         // 1) Vorbedingungen prüfen: Binary muss ausführbar, Modell muss vorhanden sein.
@@ -37,6 +41,7 @@ final class WhisperTranscriber: Transcribing {
         //    sauber wartet, ohne den aufrufenden (Main-)Thread zu blockieren.
         //    Der eigentliche Aufruf läuft in einem detached Task auf einem
         //    Hintergrund-Thread; Process.run() + waitUntilExit() blockieren dort.
+        let vad = vadModelPath
         return try await withCheckedThrowingContinuation { continuation in
             Task.detached(priority: .userInitiated) {
                 do {
@@ -44,7 +49,9 @@ final class WhisperTranscriber: Transcribing {
                         binaryPath: self.binaryPath,
                         modelPath: self.modelPath,
                         language: self.language,
-                        wav: wav
+                        wav: wav,
+                        prompt: prompt,
+                        vadModelPath: vad
                     )
                     continuation.resume(returning: result)
                 } catch {
@@ -62,18 +69,33 @@ final class WhisperTranscriber: Transcribing {
         binaryPath: String,
         modelPath: String,
         language: String,
-        wav: URL
+        wav: URL,
+        prompt: String,
+        vadModelPath: String?
     ) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binaryPath)
         // Argumente: Modell, Eingabedatei, Sprache, keine Zeitstempel, kein Progress.
-        process.arguments = [
+        // `-sns` (suppress-non-speech) unterdrückt Nicht-Sprach-Tokens wie „[Musik]"/
+        // „*Piep*" — reduziert Halluzinationen bei Stille.
+        var arguments = [
             "-m", modelPath,
             "-f", wav.path,
             "-l", language,
             "-nt",
-            "-np"
+            "-np",
+            "-sns"
         ]
+        // Prompt-Biasing: lässt Whisper Eigennamen/Fachbegriffe direkt korrekt erkennen.
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedPrompt.isEmpty {
+            arguments.append(contentsOf: ["--prompt", trimmedPrompt])
+        }
+        // VAD nur, wenn ein Modell vorhanden ist (sonst würde whisper-cli scheitern).
+        if let vad = vadModelPath, FileManager.default.fileExists(atPath: vad) {
+            arguments.append(contentsOf: ["--vad", "--vad-model", vad])
+        }
+        process.arguments = arguments
 
         // Separate Pipes für stdout (Transkript) und stderr (Diagnose).
         let stdoutPipe = Pipe()
