@@ -46,7 +46,34 @@ final class VoiceCommandProcessor: VoiceCommandProcessing {
         ("semikolon", ";"),
         ("bindestrich", "-"),
         ("punkt", "."),
-        ("komma", ",")
+        ("komma", ","),
+        // Slash als Command-Zeichen (Terminal / Claude-Code-Befehle). Bare „slash"
+        // ohne folgendes Wort → „/". „slash <wort>" wird vorher in applySlashCommands
+        // zu „/<wort>" zusammengezogen, hier bleibt also nur der Einzelfall.
+        ("schrägstrich", "/"),
+        ("slash", "/")
+    ]
+
+    /// Bekannte Claude-Code-Slash-Befehle + häufige deutsche Verhörer → kanonischer
+    /// (englischer, klein geschriebener) Befehl. Wird NUR direkt hinter „slash"/
+    /// „schrägstrich" angewandt — dort ist der Kontext eindeutig ein Befehl, das
+    /// Zuordnen ist also sicher (z.B. ist „/klar" zweifelsfrei „/clear" gemeint).
+    private let slashAliases: [String: String] = [
+        "kontext": "context",
+        "klar": "clear",
+        "kompakt": "compact",
+        "modell": "model",
+        "hilfe": "help",
+        "kosten": "cost",
+        "konfig": "config",
+        "konfiguration": "config",
+        "fortsetzen": "resume",
+        "fortsetzung": "resume",
+        "rückgängig": "undo",
+        "wiederholen": "redo",
+        "überprüfen": "review",
+        "überprüfung": "review",
+        "sicherheit": "security-review"
     ]
 
     // MARK: - Init
@@ -64,22 +91,54 @@ final class VoiceCommandProcessor: VoiceCommandProcessing {
             }
         }
 
-        // 2. Ersetzungs-Befehle anwenden.
-        var result = text
+        // 2. Slash-Befehle zuerst: „slash context" → „/context" (Command-Zeichen,
+        //    kleingeschrieben, ohne Leerzeichen angehängt).
+        var result = applySlashCommands(text)
+
+        // 3. Ersetzungs-Befehle (Satzzeichen / Layout / bare slash) anwenden.
         for rule in replacements {
             result = replacePhrase(rule.phrase, with: rule.replacement, in: result)
         }
 
-        // 3. Wenn sich nichts geändert hat, war kein Befehl enthalten → Passthrough.
+        // 4. Wenn sich nichts geändert hat, war kein Befehl enthalten → Passthrough.
         if result == text {
             return .passthrough(text)
         }
 
-        // 4. Aufräumen: Leerzeichen vor Satzzeichen entfernen, Mehrfach-Leerzeichen
+        // 5. Aufräumen: Leerzeichen vor Satzzeichen entfernen, Mehrfach-Leerzeichen
         //    zusammenfassen, Umbrüche säubern, dann trimmen.
         result = tidyUp(result)
 
         return VoiceCommandResult(text: result, aborted: false)
+    }
+
+    // MARK: - Slash-Befehle
+
+    /// Wandelt gesprochene Slash-Befehle in echte Commands: „slash context" → „/context".
+    /// Das Befehlswort wird kleingeschrieben (Commands sind lowercase) und direkt an
+    /// „/" gehängt (kein Leerzeichen), damit z.B. Claude Code es als Befehl erkennt.
+    /// Häufige deutsche Verhörer werden über `slashAliases` auf den richtigen Befehl
+    /// gemappt. Unbekannte Wörter bleiben erhalten (eigene/Custom-Commands funktionieren also auch).
+    private func applySlashCommands(_ text: String) -> String {
+        // „slash"/„schrägstrich" + folgendes Wort (Buchstaben/Ziffern/Bindestrich).
+        guard let regex = try? NSRegularExpression(
+            pattern: "\\b(?:slash|schrägstrich)\\s+([\\p{L}\\p{N}-]+)",
+            options: [.caseInsensitive]
+        ) else { return text }
+
+        let ns = text as NSString
+        let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return text }
+
+        // Von hinten nach vorne ersetzen, damit die (aus dem Originaltext stammenden)
+        // Ranges der früheren Treffer gültig bleiben.
+        var result = text
+        for match in matches.reversed() {
+            let raw = ns.substring(with: match.range(at: 1)).lowercased()
+            let command = slashAliases[raw] ?? raw
+            result = (result as NSString).replacingCharacters(in: match.range, with: "/" + command)
+        }
+        return result
     }
 
     // MARK: - Regex-Helfer

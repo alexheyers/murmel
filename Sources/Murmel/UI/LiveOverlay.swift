@@ -29,6 +29,7 @@ final class LiveOverlay {
         if panel == nil { build() }
         position()
         panel?.orderFrontRegardless()
+        Log.line("LiveOverlay.show() — panel=\(panel == nil ? "nil" : "ok") frame=\(panel?.frame ?? .zero) visible=\(panel?.isVisible ?? false)")
     }
 
     func update(_ text: String) { model.text = text }
@@ -51,12 +52,20 @@ final class LiveOverlay {
         p.level = .floating
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         p.ignoresMouseEvents = true          // klick-transparent → kein Fokusklau
+        // KRITISCH: Murmel ist eine Accessory-App (kein Dock, nie „aktiv"). Ohne dies
+        // ordnet sich das Panel kurz vor und verschwindet sofort wieder, weil eine
+        // andere App vorne ist → das Overlay war faktisch unsichtbar.
+        p.hidesOnDeactivate = false
+        p.isFloatingPanel = true
+        p.becomesKeyOnlyIfNeeded = true
         p.contentView = host
         panel = p
     }
 
     private func position() {
-        guard let p = panel, let screen = NSScreen.main else { return }
+        guard let p = panel else { return }
+        // NSScreen.main kann ohne Key-Window (Accessory-App) nil sein → Fallback.
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let vf = screen.visibleFrame
         let size = p.frame.size
         let x = vf.midX - size.width / 2

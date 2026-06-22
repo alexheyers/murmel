@@ -153,7 +153,17 @@ final class VocabularyStore: ObservableObject, VocabularyCorrecting {
         if fm.fileExists(atPath: url.path) {
             if let data = try? Data(contentsOf: url),
                let parsed = try? JSONDecoder().decode([String: String].self, from: data) {
-                return parsed
+                // Fehlende Default-Einträge einmischen, damit neue Defaults (z.B. „Murmel")
+                // auch bestehende Nutzer erreichen — ohne vom Nutzer geänderte/eigene
+                // Einträge zu überschreiben.
+                var merged = parsed
+                var added = false
+                for (key, value) in defaultVocabulary where merged[key] == nil {
+                    merged[key] = value
+                    added = true
+                }
+                if added { writeDictionary(merged) }
+                return merged
             }
             // Datei existiert, ist aber kaputt: Defaults verwenden, ohne sie zu überschreiben.
             return defaultVocabulary
@@ -223,6 +233,11 @@ final class VocabularyStore: ObservableObject, VocabularyCorrecting {
         "docker": "Docker",
         "hostinger": "Hostinger",
         "ollama": "Ollama",
-        "whisper": "Whisper"
+        "whisper": "Whisper",
+        // Die App selbst — Whisper verhört „Murmel" gern (z.B. „MoMel").
+        "murmel": "Murmel",
+        "momel": "Murmel",
+        "mömel": "Murmel",
+        "mörmel": "Murmel"
     ]
 }

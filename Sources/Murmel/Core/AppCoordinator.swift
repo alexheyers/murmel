@@ -355,6 +355,7 @@ final class AppCoordinator: ObservableObject {
     // MARK: - Streaming-Vorschau
 
     private func startStreaming() {
+        Log.line("startStreaming() — streamingEnabled=\(settings.streamingEnabled)")
         overlay.show()
         previewBusy = false
         // Server sicherstellen (idempotent — warm, falls schon gestartet).
@@ -402,7 +403,9 @@ final class AppCoordinator: ObservableObject {
                 // Nur den jüngsten Abschnitt zeigen; truncationMode(.head) im Overlay
                 // sorgt zusätzlich dafür, dass stets die zuletzt gesprochenen Worte sichtbar sind.
                 if phase == .recording, !text.isEmpty { overlay.update(String(text.suffix(400))) }
+                Log.line("streamingTick: \(text.count) Zeichen Vorschau")
             } catch {
+                Log.line("streamingTick FEHLER: \(error.localizedDescription)")
                 try? FileManager.default.removeItem(at: snap)
             }
         }

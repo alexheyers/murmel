@@ -22,6 +22,19 @@ check(ab.aborted, "‚abbrechen' → aborted")
 let pt = proc.process("ein ganz normaler Satz ohne Befehle")
 check(!pt.aborted && pt.text == "ein ganz normaler Satz ohne Befehle", "Passthrough unverändert")
 
+// Slash-Befehle (Claude-Code / Terminal)
+let sc = proc.process("slash context")
+check(sc.text == "/context", "‚slash context' → /context  (\(sc.text))")
+
+let scAlias = proc.process("Slash klar")
+check(scAlias.text == "/clear", "‚slash klar' → /clear (deutscher Verhörer)  (\(scAlias.text))")
+
+let scMid = proc.process("bitte slash commit ausführen")
+check(scMid.text == "bitte /commit ausführen", "‚slash commit' mitten im Satz → /commit  (\(scMid.text))")
+
+let scCustom = proc.process("slash studio")
+check(scCustom.text == "/studio", "eigener Command ‚slash studio' → /studio  (\(scCustom.text))")
+
 check(!DictationStyle.raw.usesPolish, "Roh poliert nicht")
 check(DictationStyle.email.usesPolish && DictationStyle.claudePrompt.usesPolish, "andere Stile polieren")
 check(DictationStyle.allCases.allSatisfy { !$0.displayName.isEmpty }, "alle Stile haben Anzeigenamen")

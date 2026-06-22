@@ -2,7 +2,11 @@
 
 > Laufende Übergabe-Doku. Beim nächsten Start zuerst lesen.
 > **Stand: 2026-06-22.** Murmel läuft end-to-end, installiert, alles committet & gepusht.
-> **Neu (22.06.):** Live-Vorschau läuft jetzt über einen **residenten `whisper-server`** statt kalter `whisper-cli` pro Tick → ~3× schneller pro Update (gemessen 0,11 s statt 0,35 s), Takt von 1,5 s → 0,7 s. Finaler Diktat-Lauf (large-v3-turbo) unverändert.
+> **Neu (22.06.):**
+> 1. **Vorschau-Server:** Live-Vorschau läuft jetzt über einen **residenten `whisper-server`** statt kalter `whisper-cli` pro Tick → ~3× schneller pro Update (gemessen 0,11 s statt 0,35 s), Takt 1,5 s → 0,7 s. Finaler Lauf (large-v3-turbo) unverändert.
+> 2. **Overlay-Fix (wichtig!):** Das Vorschau-Fenster war faktisch unsichtbar — Bug: Accessory-App ist nie „aktiv", Panel versteckte sich sofort wieder. Fix: `hidesOnDeactivate = false` + Floating-Panel-Flags in `LiveOverlay`. Per Log verifiziert (`visible=true`, Frame im unteren Bildschirmdrittel).
+> 3. **Slash-Befehle:** „slash context" → `/context` (kleingeschrieben, angehängt), deutsche Verhörer gemappt („slash klar" → `/clear`), eigene Commands funktionieren generisch. In `VoiceCommandProcessor`.
+> 4. **Eigenname „Murmel":** als Vokabel ergänzt (inkl. Verhörer „MoMel"). Wörterbuch **merged** jetzt fehlende Defaults in bestehende `vokabular.json`, ohne eigene Einträge zu überschreiben.
 
 ---
 
@@ -55,7 +59,7 @@ cp -R dist/Murmel.app /Applications/ && open /Applications/Murmel.app
 
 ## Offene Punkte / Nächste Ideen
 
-- [ ] **Streaming-Overlay visuell prüfen** — Build/Logik/Modell/Server-Pfad verifiziert (inkl. echtem End-to-End-Integrationstest gegen `whisper-server`), aber das HUD konnte headless nicht gesehen werden. Alex testen lassen; Takt ist jetzt 0,7s — ggf. Position feinjustieren. **App neu bauen+installieren nötig** (`make-app.sh`), damit die Server-Vorschau greift.
+- [x] **Streaming-Overlay sichtbar** — ✅ FIX 22.06. Das HUD war durch `hidesOnDeactivate` unsichtbar; jetzt per Log bestätigt sichtbar (`visible=true`). Falls Position/Takt (0,7s) noch nerven: Alex sagt Bescheid, dann feinjustieren.
 - [ ] **App-Tracking füllt sich erst ab jetzt** — die ~52 Altdiktate haben kein „wo". Nach neuen Diktaten „Top-Apps" prüfen.
 - [ ] **Optional:** anonymer Notion-Aggregat-Sync (nur Kennzahlen, keine Texte) — Alex hatte's erwogen, vorerst lokal belassen.
 - [ ] **Optional:** `praesentation.html` als eigene Vercel-URL deployen + als LinkedIn-Carousel aufbereiten.
