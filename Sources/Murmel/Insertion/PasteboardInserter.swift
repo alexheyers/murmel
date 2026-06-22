@@ -19,10 +19,13 @@ final class PasteboardInserter: TextInserting {
     private let keyCodeV: CGKeyCode = 9
 
     /// Wartezeit, damit die Zwischenablage nach dem Setzen sicher verfügbar ist.
-    private let pasteDelay: TimeInterval = 0.05   // ~50 ms
+    private let pasteDelay: TimeInterval = 0.06   // ~60 ms
 
     /// Wartezeit nach dem ⌘V, bevor der alte Inhalt zurückgeschrieben wird.
-    private let restoreDelay: TimeInterval = 0.15 // ~150 ms
+    /// Bewusst großzügig (~500 ms): langsame Apps (Apple Notes, Electron, Web-Views)
+    /// lesen die Zwischenablage verzögert — bei 150 ms wurde teils der ALTE Inhalt
+    /// zurückgeschrieben, BEVOR die App den neuen Text las → es kam nichts/Falsches an.
+    private let restoreDelay: TimeInterval = 0.5  // ~500 ms
 
     init() {}
 
@@ -68,9 +71,11 @@ final class PasteboardInserter: TextInserting {
 
     /// Synthetisiert ein ⌘V (keyDown + keyUp) und postet es an den HID-Event-Tap.
     private func synthesizePasteShortcut() {
-        // Eigene Event-Source — robuster als nil, da sie ein konsistentes
-        // Status-Modell für die synthetischen Events liefert.
-        let source = CGEventSource(stateID: .combinedSessionState)
+        // privateState statt combinedSessionState: das synthetische ⌘V wird NICHT mit
+        // physisch gedrückten Modifiern (z.B. einer noch/zwischenzeitlich gehaltenen
+        // fn- oder ⌥-Taste) ge-ODER-t. Sonst entsteht „fn-⌘V"/„⌥-⌘V", das Apps wie
+        // Notes als ANDERES Kürzel (kein Einfügen) interpretieren → „abgebrochen".
+        let source = CGEventSource(stateID: .privateState)
 
         // 4. keyDown + keyUp für 'v' mit gedrückter ⌘-Taste erzeugen.
         guard

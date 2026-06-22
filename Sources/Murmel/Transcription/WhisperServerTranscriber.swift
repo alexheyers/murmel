@@ -32,6 +32,8 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
     private let language: String
     private let host: String
     private let port: Int
+    /// Optionaler VAD-Modellpfad — existiert die Datei, startet der Server mit `--vad`.
+    private let vadModelPath: String?
     /// Wird genutzt, wenn der Server nicht erreichbar ist (i.d.R. ein CLI-Transcriber).
     private let fallback: Transcribing?
 
@@ -47,12 +49,14 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
          language: String,
          host: String = "127.0.0.1",
          port: Int = 8771,
+         vadModelPath: String? = nil,
          fallback: Transcribing? = nil) {
         self.binaryPath = binaryPath
         self.modelPath = modelPath
         self.language = language
         self.host = host
         self.port = port
+        self.vadModelPath = vadModelPath
         self.fallback = fallback
 
         let cfg = URLSessionConfiguration.ephemeral
@@ -87,13 +91,22 @@ final class WhisperServerTranscriber: Transcribing, @unchecked Sendable {
 
             let p = Process()
             p.executableURL = URL(fileURLWithPath: self.binaryPath)
-            p.arguments = [
+            // Server mit denselben Schutz-Flags wie die CLI starten:
+            //  -sns  → Nicht-Sprach-Tokens unterdrücken (Anti-Halluzination)
+            //  -mc 0 → kein Kontext über Segmentgrenzen (Anti-Wiederholungsschleife)
+            var args = [
                 "-m", self.modelPath,
                 "-l", self.language,
                 "-nt",
+                "-sns",
+                "-mc", "0",
                 "--host", self.host,
                 "--port", String(self.port)
             ]
+            if let vad = self.vadModelPath, FileManager.default.fileExists(atPath: vad) {
+                args.append(contentsOf: ["--vad", "--vad-model", vad])
+            }
+            p.arguments = args
             // Server-Logs verwerfen (gehen sonst ins Nirvana / blockieren Pipes nicht).
             p.standardOutput = FileHandle.nullDevice
             p.standardError = FileHandle.nullDevice

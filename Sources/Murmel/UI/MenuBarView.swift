@@ -57,6 +57,11 @@ struct MenuBarView: View {
         .onChange(of: settings.hotkeyTrigger) { _, newValue in
             coordinator.updateTrigger(newValue)
         }
+        .onChange(of: settings.currentStyle) { _, _ in
+            // Bei Wechsel auf einen Politur-Stil das Ollama-Modell vorwärmen,
+            // damit das erste Diktat in diesem Stil nicht ~13 s kalt lädt.
+            coordinator.warmUpOllamaIfNeeded()
+        }
     }
 
     // MARK: Sections

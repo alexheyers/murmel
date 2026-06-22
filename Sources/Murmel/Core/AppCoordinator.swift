@@ -51,28 +51,28 @@ final class AppCoordinator: ObservableObject {
 
         let s = Settings.shared
         self.recorder = AudioRecorder()
-        self.transcriber = WhisperTranscriber(
+        // EIN residenter large-v3-turbo-Server für Vorschau UND finalen Lauf:
+        //  • finaler Lauf warm ~0,9 s statt kalt ~3–6 s (Modell bleibt geladen)
+        //  • Vorschau nutzt dasselbe Modell wie final → keine falschen Eigennamen mehr
+        // Kalte whisper-cli (turbo, mit Anti-Loop-/VAD-Flags) als Fallback, falls der
+        // Server (noch) nicht erreichbar ist — so bleibt das Diktat IMMER funktionsfähig.
+        let coldCLI = WhisperTranscriber(
             binaryPath: s.whisperBinaryPath,
             modelPath: s.whisperModelPath,
             language: s.language,
-            vadModelPath: s.vadModelPath   // genutzt, falls die Datei existiert
+            vadModelPath: s.vadModelPath
         )
-        // Vorschau: residenter Server (schnell, Modell bleibt geladen). Als Fallback
-        // eine kalte whisper-cli mit demselben Vorschau-Modell — so funktioniert die
-        // Vorschau auch dann, wenn der Server (noch) nicht erreichbar ist.
-        let previewCLI = WhisperTranscriber(
-            binaryPath: s.whisperBinaryPath,
-            modelPath: s.previewModelPath,
-            language: s.language
-        )
-        self.previewTranscriber = WhisperServerTranscriber(
+        let server = WhisperServerTranscriber(
             binaryPath: s.whisperServerBinaryPath,
-            modelPath: s.previewModelPath,
+            modelPath: s.whisperModelPath,        // turbo statt base
             language: s.language,
             host: s.whisperServerHost,
             port: s.whisperServerPort,
-            fallback: previewCLI
+            vadModelPath: s.vadModelPath,
+            fallback: coldCLI
         )
+        self.transcriber = server          // finaler Lauf (warm)
+        self.previewTranscriber = server   // Live-Vorschau (dasselbe Modell)
         let pol = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel)
         self.polisher = pol
         self.inserter = PasteboardInserter()
@@ -113,9 +113,18 @@ final class AppCoordinator: ObservableObject {
             Permissions.requestAccessibility()
         }
         startHotkey()
-        // Vorschau-Server vorwärmen, damit das Modell schon vor dem ersten Diktat
-        // geladen ist (sonst zahlt das erste Diktat den Ladevorgang).
-        if settings.streamingEnabled { previewTranscriber.ensureRunning() }
+        // Turbo-Server IMMER vorwärmen — der finale Lauf nutzt ihn jetzt auch (nicht nur
+        // die Vorschau). So ist das Modell vor dem ersten Diktat geladen (sonst ~1,5 s extra).
+        previewTranscriber.ensureRunning()
+        warmUpOllamaIfNeeded()
+    }
+
+    /// Lädt das Politur-Modell (Ollama) vorab in den Speicher — aber nur, wenn ein
+    /// Politur-Stil aktiv ist. Sonst zahlt das erste Politur-Diktat ~13 s Kaltstart.
+    /// Bei `.raw` (keine Politur) wird nichts geladen (kein RAM verschwendet).
+    func warmUpOllamaIfNeeded() {
+        guard settings.currentStyle.usesPolish else { return }
+        Task { _ = await polisher.complete(system: "Antworte nur mit: OK", user: "warmup") }
     }
 
     func startHotkey() {
@@ -415,7 +424,9 @@ final class AppCoordinator: ObservableObject {
         // Schnellerer Takt: dank residentem Server kostet eine Vorschau nur ~0,1 s,
         // also kann das Overlay flüssiger mitlaufen. Die previewBusy-Sperre drosselt
         // automatisch, falls ein Lauf (bei langem Audio) mal länger als der Takt dauert.
-        let t = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
+        // 0,9 s Takt: das turbo-Modell braucht pro Vorschau mehr als base; die
+        // previewBusy-Sperre drosselt zusätzlich automatisch bei langem Audio.
+        let t = Timer.scheduledTimer(withTimeInterval: 0.9, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.streamingTick() }
         }
         streamTimer = t
@@ -445,11 +456,11 @@ final class AppCoordinator: ObservableObject {
     /// transkribieren und ins Overlay schreiben. Überlappungen werden vermieden.
     private func streamingTick() {
         guard settings.streamingEnabled, phase == .recording, !previewBusy else { return }
-        // GANZES bisher Aufgenommenes transkribieren (maxSeconds: 0). Ein gleitendes
-        // Fenster ließ das base-Modell pro Tick einen ANDEREN Audio-Ausschnitt dekodieren
-        // → die Vorschau flackerte (mal 170, mal 3 Zeichen). Ganzes Audio = monoton
-        // wachsend & stabil; der residente Server hält es schnell genug.
-        guard let snap = recorder.snapshotWAV(maxSeconds: 0) else { return }
+        // Vorschau-Fenster: bis 20 s ganzes Audio, darüber nur die letzten 20 s.
+        // Mit dem turbo-Modell ist dieses Fenster stabil (kein base-Flackern mehr) und
+        // bleibt auch bei MINUTENLANGEN Diktaten schnell — das Overlay zeigt ohnehin nur
+        // die zuletzt gesprochenen Worte. Der FINALE Lauf nutzt weiter das KOMPLETTE Audio.
+        guard let snap = recorder.snapshotWAV(maxSeconds: 20) else { return }
         previewBusy = true
         let prompt = currentWhisperPrompt()
         Task { @MainActor in
