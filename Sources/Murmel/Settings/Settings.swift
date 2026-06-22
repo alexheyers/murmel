@@ -27,6 +27,18 @@ final class Settings: ObservableObject {
         didSet { defaults.set(streamingEnabled, forKey: Keys.streaming) }
     }
 
+    /// Auto-Modus: wählt den Diktat-Stil automatisch nach der aktiven App — aber nur,
+    /// solange der Nutzer auf dem Standard-Stil `.raw` steht (manuelle Wahl bleibt unangetastet).
+    @Published var autoStyleByApp: Bool {
+        didSet { defaults.set(autoStyleByApp, forKey: Keys.autoStyleByApp) }
+    }
+
+    /// Antworten vorlesen (Zwei-Wege-Voice): liest Assistent-/Zusammenfassen-Antworten
+    /// nach dem Einfügen mit einer lokalen Stimme laut vor. Standardmäßig AUS.
+    @Published var speakAnswers: Bool {
+        didSet { defaults.set(speakAnswers, forKey: Keys.speakAnswers) }
+    }
+
     /// Schnelles Modell für die Live-Vorschau (klein, lädt schnell). Final bleibt large-v3-turbo.
     var previewModelPath: String {
         get { defaults.string(forKey: Keys.previewModel) ?? MurmelPaths.modelsDir.appendingPathComponent("ggml-base.bin").path }
@@ -117,6 +129,47 @@ final class Settings: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.ragTopK) }
     }
 
+    /// Sinnvolle Start-Ordner für den Wissens-Assistenten — gibt von den Kandidaten
+    /// NUR die zurück, die tatsächlich existieren:
+    ///  - `~/Documents/Claude/Projects`
+    ///  - erster Treffer unter `~/Library/CloudStorage/`, dessen Name mit "OneDrive" beginnt
+    ///  - `~/Library/Mobile Documents/com~apple~CloudDocs` (iCloud Drive)
+    static func defaultKnowledgeFolders() -> [String] {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        var result: [String] = []
+
+        // Hilfsfunktion: nur existierende Verzeichnisse aufnehmen.
+        func addIfDirectory(_ url: URL) {
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                result.append(url.path)
+            }
+        }
+
+        // 1) ~/Documents/Claude/Projects
+        addIfDirectory(home.appendingPathComponent("Documents/Claude/Projects"))
+
+        // 2) Erster CloudStorage-Eintrag, der mit "OneDrive" beginnt.
+        let cloudStorage = home.appendingPathComponent("Library/CloudStorage")
+        if let entries = try? fm.contentsOfDirectory(
+            at: cloudStorage,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            let oneDrive = entries
+                .filter { $0.lastPathComponent.hasPrefix("OneDrive") }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                .first
+            if let oneDrive { addIfDirectory(oneDrive) }
+        }
+
+        // 3) iCloud Drive
+        addIfDirectory(home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs"))
+
+        return result
+    }
+
     // MARK: Init
 
     private init() {
@@ -128,10 +181,24 @@ final class Settings: ObservableObject {
 
         self.streamingEnabled = defaults.bool(forKey: Keys.streaming)
 
+        // Auto-Modus standardmäßig AN (nur beim ersten Start, danach Nutzer-Wert respektieren).
+        self.autoStyleByApp = defaults.object(forKey: Keys.autoStyleByApp) == nil
+            ? true
+            : defaults.bool(forKey: Keys.autoStyleByApp)
+
+        self.speakAnswers = defaults.bool(forKey: Keys.speakAnswers)
+
         if #available(macOS 13.0, *) {
             self.launchAtLogin = (SMAppService.mainApp.status == .enabled)
         } else {
             self.launchAtLogin = false
+        }
+
+        // Wissens-Ordner beim allerersten Start mit sinnvollen, existierenden
+        // Defaults vorbelegen. KEINE automatische Indexierung — die bleibt
+        // ausschließlich nutzergetriggert.
+        if knowledgeFolders.isEmpty {
+            knowledgeFolders = Self.defaultKnowledgeFolders()
         }
     }
 
@@ -217,6 +284,8 @@ final class Settings: ObservableObject {
         static let language = "murmel.language"
         static let instrPrefix = "murmel.instr."
         static let streaming = "murmel.streaming"
+        static let autoStyleByApp = "murmel.autoStyleByApp"
+        static let speakAnswers = "murmel.speakAnswers"
         static let previewModel = "murmel.previewModel"
         static let vadModel = "murmel.vadModel"
         static let whisperServerBin = "murmel.whisperServerBin"

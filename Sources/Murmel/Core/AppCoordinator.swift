@@ -25,7 +25,14 @@ final class AppCoordinator: ObservableObject {
     private let overlay = LiveOverlay()
     private var streamTimer: Timer?
     private var previewBusy = false
+
+    // Auto-Modus: Ziel-App zum Aufnahme-Zeitpunkt merken (Murmel selbst stiehlt keinen
+    // Fokus, aber der Wert wird stabil beim Drücken erfasst, nicht erst nach der Politur).
+    private var pendingTargetBundleId: String?
+    private var pendingTargetName: String?
     private let inserter: TextInserting
+    /// Lokale Sprachausgabe (Zwei-Wege-Voice): liest Antworten vor.
+    private let speaker = Speaker()
     private let hotkey: HotkeyMonitoring
     /// Konkreter Store (ObservableObject) — wird auch von der Wörterbuch-UI beobachtet.
     let vocabulary: VocabularyStore
@@ -142,6 +149,11 @@ final class AppCoordinator: ObservableObject {
         }
         do {
             try recorder.startRecording()
+            // Ziel-App jetzt erfassen — Murmel ist eine Menubar-App ohne eigenes Fenster,
+            // die frontmost-App bleibt also das Zielfenster für den Auto-Modus.
+            let app = NSWorkspace.shared.frontmostApplication
+            pendingTargetBundleId = app?.bundleIdentifier
+            pendingTargetName = app?.localizedName
             phase = .recording
             Log.line("Aufnahme gestartet")
             Sounds.start()
@@ -205,8 +217,18 @@ final class AppCoordinator: ObservableObject {
             // 3. Wörterbuch
             let corrected = vocabulary.correct(cmd.text)
 
+            // 3a. Auto-Modus: nur wenn aktiviert UND der Nutzer auf dem Standard-Stil .raw steht,
+            //     wählt Murmel den Stil nach der aktiven App. Manuelle Stilwahl bleibt unangetastet.
+            let autoActive = settings.autoStyleByApp && settings.currentStyle == .raw
+            let effectiveStyle: DictationStyle = autoActive
+                ? (AppStyleMapper.style(forBundleId: pendingTargetBundleId, name: pendingTargetName) ?? .raw)
+                : settings.currentStyle
+            if autoActive {
+                Log.line("Auto-Modus: App=\"\(pendingTargetName ?? "?")\" (\(pendingTargetBundleId ?? "?")) → Stil \(effectiveStyle.displayName)")
+            }
+
             // 3b. Daten-Assistent (RAG): eigener Pfad — sucht in den eigenen Daten und fügt das Ergebnis ein.
-            if settings.currentStyle.isDataAssistant {
+            if effectiveStyle.isDataAssistant {
                 phase = .polishing
                 Log.line("Daten-Assistent: \"\(corrected)\"")
                 let result = await dataAssistant.answer(instruction: corrected, topK: settings.ragTopK)
@@ -216,10 +238,11 @@ final class AppCoordinator: ObservableObject {
                     cleanup(wav); phase = .idle; Sounds.soft(); return
                 }
                 let targetApp = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
-                history.add(raw: raw, final: answer, style: .dataAssistant, app: targetApp)
+                history.add(raw: raw, final: answer, style: effectiveStyle, app: targetApp)
                 phase = .inserting
                 Log.line("Daten-Assistent: füge ein (\(answer.count) Zeichen, Quellen: \(result.sources.joined(separator: ", ")))")
                 inserter.insert(answer)
+                if settings.speakAnswers { speaker.speak(answer) }
                 Sounds.done()
                 if settings.streamingEnabled, !result.sources.isEmpty {
                     overlay.update("Quellen: " + result.sources.joined(separator: ", "))
@@ -231,7 +254,7 @@ final class AppCoordinator: ObservableObject {
             }
 
             // 4. Politur / Übersetzung / Befehl / Assistent / Zusammenfassen
-            let style = settings.currentStyle
+            let style = effectiveStyle
             let llmInput: String
             let llmInstruction: String
             if style.usesClipboardInput {
@@ -266,12 +289,17 @@ final class AppCoordinator: ObservableObject {
             // 5. Verlauf (inkl. App, in die eingefügt wird — Murmel selbst stiehlt keinen Fokus,
             //    also ist die frontmost-App das Zielfenster)
             let targetApp = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
-            history.add(raw: raw, final: trimmed, style: settings.currentStyle, app: targetApp)
+            history.add(raw: raw, final: trimmed, style: effectiveStyle, app: targetApp)
 
             // 6. Einfügen
             phase = .inserting
             Log.line("Pipeline: füge ein = \"\(trimmed)\"")
             inserter.insert(trimmed)
+            // Zwei-Wege-Voice: nur echte „Antwort"-Modi vorlesen (Assistent/Zusammenfassen),
+            // NICHT E-Mail/Roh/Code etc.
+            if settings.speakAnswers, effectiveStyle == .assistant || effectiveStyle == .summarize {
+                speaker.speak(trimmed)
+            }
             Sounds.done()
 
             cleanup(wav)
@@ -301,6 +329,19 @@ final class AppCoordinator: ObservableObject {
     func reinsert(_ entry: HistoryEntry) {
         inserter.insert(entry.final)
         Sounds.done()
+    }
+
+    // MARK: - Vorlesen (lokale TTS)
+
+    /// Liest den aktuellen Inhalt der Zwischenablage mit der lokalen Stimme vor.
+    func speakClipboard() {
+        let s = NSPasteboard.general.string(forType: .string) ?? ""
+        speaker.speak(s)
+    }
+
+    /// Stoppt eine laufende Sprachausgabe.
+    func stopSpeaking() {
+        speaker.stop()
     }
 
     // MARK: - Auto-Wörterbuch

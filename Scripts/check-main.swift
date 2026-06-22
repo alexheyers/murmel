@@ -82,5 +82,10 @@ check(TranscriptHygiene.isLikelyHallucination("Untertitel der Amara.org-Communit
 check(!TranscriptHygiene.isLikelyHallucination("Das ist ein echter Satz."), "Echter Satz NICHT als Halluzination")
 check(!TranscriptHygiene.isLikelyHallucination("Vielen Dank."), "‚Vielen Dank.' bleibt erhalten (kein Falsch-Filter)")
 
+// Auto-Modus: App → Stil
+check(AppStyleMapper.style(forBundleId: "com.apple.Terminal", name: nil) == .raw, "Auto-Modus: Terminal → roh")
+check(AppStyleMapper.style(forBundleId: "com.apple.mail", name: nil) == .email, "Auto-Modus: Mail → email")
+check(AppStyleMapper.style(forBundleId: "com.unknown.app", name: "Foo") == nil, "Auto-Modus: Unbekannt → nil")
+
 print(failures == 0 ? "\nALLE CHECKS GRÜN" : "\n\(failures) CHECK(S) FEHLGESCHLAGEN")
 exit(failures == 0 ? 0 : 1)

@@ -17,16 +17,21 @@ final class KnowledgeIndexer: KnowledgeIndexing {
     private static let textExtensions: Set<String> = [
         "md", "txt", "swift", "py", "js", "ts", "tsx", "jsx", "html", "css",
         "json", "yaml", "yml", "sh", "c", "h", "cpp", "rs", "go", "java",
-        "kt", "rb", "php", "sql", "csv", "xml"
+        "kt", "rb", "php", "sql", "csv", "xml",
+        // Zusätzliche text-artige Endungen (Müll-Filter / robusterer RAG-Index).
+        "log", "toml", "ini", "tex", "srt", "markdown"
     ]
 
-    /// Verzeichnis-Namen, die komplett übersprungen werden.
+    /// Verzeichnis-Namen, die komplett übersprungen werden (Müll-/Build-Ordner).
+    /// Wird beim Walk geprüft, sobald der Name IRGENDWO im Pfad auftaucht.
     private static let skippedDirNames: Set<String> = [
-        "node_modules", ".build", ".git", "dist"
+        "node_modules", ".build", ".git", "dist", "build", ".next", "Pods",
+        ".venv", "venv", "__pycache__", "DerivedData", ".cache", ".swiftpm",
+        "vendor", ".Trash", ".vercel", "target", ".gradle"
     ]
 
-    /// Obergrenze für Dateigröße (~1 MB) — Größeres wird ignoriert.
-    private static let maxFileBytes = 1_000_000
+    /// Obergrenze für Dateigröße (2 MB) — Größeres wird ignoriert.
+    private static let maxFileBytes = 2_000_000
 
     /// Ziel-Chunk-Größe in Zeichen.
     private static let chunkMin = 600
@@ -112,6 +117,10 @@ final class KnowledgeIndexer: KnowledgeIndexing {
             guard values?.isRegularFile ?? false else { continue }
             if isHidden { continue }
 
+            // Sicherheitsnetz: liegt ein Müll-Ordner-Name IRGENDWO im Pfad
+            // (z.B. weil skipDescendants den Einstieg knapp verpasst hat), Datei überspringen.
+            if Self.pathContainsSkippedDir(url) { continue }
+
             // Endung prüfen.
             let ext = url.pathExtension.lowercased()
             guard Self.textExtensions.contains(ext) else { continue }
@@ -119,6 +128,14 @@ final class KnowledgeIndexer: KnowledgeIndexing {
             files.append(url)
         }
         return files
+    }
+
+    /// True, wenn einer der Müll-Ordner-Namen als Pfad-Komponente in `url` vorkommt.
+    private static func pathContainsSkippedDir(_ url: URL) -> Bool {
+        for component in url.pathComponents where skippedDirNames.contains(component) {
+            return true
+        }
+        return false
     }
 
     /// Indexiert eine einzelne Datei (inkrementell).

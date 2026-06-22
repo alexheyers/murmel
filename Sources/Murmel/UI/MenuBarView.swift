@@ -23,6 +23,14 @@ struct MenuBarView: View {
                 .toggleStyle(.checkbox)
                 .help("Zeigt während des Sprechens fortlaufend Text in einem Overlay (lokales base-Modell).")
 
+            Toggle("Modus automatisch je App", isOn: $settings.autoStyleByApp)
+                .toggleStyle(.checkbox)
+                .help("Nur im Roh-Modus: wählt den Stil nach aktiver App (Terminal→Roh, Mail→E-Mail, Notion→Brainstorming).")
+
+            Toggle("Antworten vorlesen", isOn: $settings.speakAnswers)
+                .toggleStyle(.checkbox)
+                .help("Liest Assistent-/Zusammenfassen-Antworten nach dem Einfügen laut vor (lokale Stimme).")
+
             Divider()
 
             Button {
@@ -33,6 +41,11 @@ struct MenuBarView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .controlSize(.large)
+
+            HStack {
+                Button("Zwischenablage vorlesen") { coordinator.speakClipboard() }
+                Button("Vorlesen stoppen") { coordinator.stopSpeaking() }
+            }
 
             Divider()
 

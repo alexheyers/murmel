@@ -7,6 +7,10 @@
 > 2. **Overlay-Fix (wichtig!):** Das Vorschau-Fenster war faktisch unsichtbar — Bug: Accessory-App ist nie „aktiv", Panel versteckte sich sofort wieder. Fix: `hidesOnDeactivate = false` + Floating-Panel-Flags in `LiveOverlay`. Per Log verifiziert (`visible=true`, Frame im unteren Bildschirmdrittel).
 > 3. **Slash-Befehle:** „slash context" → `/context` (kleingeschrieben, angehängt), deutsche Verhörer gemappt („slash klar" → `/clear`), eigene Commands funktionieren generisch. In `VoiceCommandProcessor`.
 > 4. **Eigenname „Murmel":** als Vokabel ergänzt (inkl. Verhörer „MoMel"). Wörterbuch **merged** jetzt fehlende Defaults in bestehende `vokabular.json`, ohne eigene Einträge zu überschreiben.
+> 5. **Eingabe-Qualität:** Prompt-Biasing (Whisper bekommt Eigennamen/Befehle als `--prompt` / Server-`prompt`-Feld → erkennt n8n/Supabase/Claude/Murmel direkt richtig), `-sns` (suppress-non-speech) + `TranscriptHygiene`-Filter gegen Stille-Halluzinationen (`*Piep*`/`[Musik]`), optional VAD (`--vad`, Modell via `setup.sh`). Windowed Streaming: Vorschau transkribiert nur die letzten 10 s.
+> 6. **Auto-Modus pro App** (`AppStyleMapper`): im Roh-Modus wählt Murmel den Stil nach aktiver App (Terminal→Roh, Mail→E-Mail, Notion/Obsidian→Brainstorming). Manuelle Stilwahl bleibt unangetastet. Toggle „Modus automatisch je App". Default AN.
+> 7. **Vorlesen / TTS** (`Speaker`, AVSpeechSynthesizer, de-DE): liest Assistent-/Zusammenfassen-Antworten nach dem Einfügen vor (Toggle „Antworten vorlesen", Default AUS) + Menü „Zwischenablage vorlesen"/„Vorlesen stoppen".
+> 8. **Wissens-Assistent kuratiert:** Indexer-Müll-Filter (node_modules, .build, Pods, DerivedData … + 2-MB-Limit + text-artige Endungen), Default-Ordner `~/Documents/Claude/Projects` + OneDrive + iCloud (nur existierende), Indexierung bleibt nutzergetriggert. **Ehrliche Grenze:** reine Cloud/Browser + „allwissend" gehen NICHT lokal — qwen 3B beantwortet RAG-Treffer, kein Genie.
 
 ---
 

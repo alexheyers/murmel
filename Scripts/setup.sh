@@ -61,6 +61,18 @@ else
         || echo "⚠︎ base-Modell-Download fehlgeschlagen — Live-Vorschau bleibt aus, Rest läuft."
 fi
 
+# 3c) VAD-Modell (Silero) — optional, reduziert Halluzinationen bei Stille
+VAD_MODEL="$MODEL_DIR/ggml-silero-v5.1.2.bin"
+VAD_URL="https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin"
+if [[ -f "$VAD_MODEL" ]]; then
+    echo "✓ VAD-Modell vorhanden ($VAD_MODEL)"
+else
+    echo "▶︎ Lade VAD-Modell (Silero, ~klein — Anti-Halluzination)…"
+    curl -L --fail --progress-bar -o "$VAD_MODEL" "$VAD_URL" \
+        && echo "✓ VAD-Modell gespeichert" \
+        || echo "⚠︎ VAD-Download fehlgeschlagen — finaler Lauf nutzt -sns (suppress-non-speech) auch ohne VAD."
+fi
+
 # 4) Ollama
 if ! command -v ollama >/dev/null 2>&1; then
     echo "▶︎ Installiere Ollama…"
