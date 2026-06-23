@@ -52,6 +52,8 @@ final class OllamaPolisher: Polishing {
             let system: String
             if style.isTranslation, let target = style.targetLanguageName {
                 system = buildTranslationPrompt(target: target, nuance: instruction, vocabularyHint: vocabularyHint)
+            } else if style.isStructured {
+                system = buildStructurePrompt(instruction: instruction, vocabularyHint: vocabularyHint)
             } else if style.isAssistant {
                 system = buildAssistantPrompt()
             } else if style.isSummarize {
@@ -131,6 +133,42 @@ final class OllamaPolisher: Polishing {
             "- Behalte die Aussage und ungefähre Länge bei. Kürze den Sinn nicht weg.",
             "- Wenn es nichts zu verbessern gibt, gib den Text unverändert zurück.",
             "- Gib NUR den bereinigten Text aus — ohne Anführungszeichen, ohne Vor- oder Nachwort."
+        ]
+
+        let styleInstruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !styleInstruction.isEmpty {
+            lines.append("- Stil: \(styleInstruction)")
+        }
+
+        let hints = vocabularyHint
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if !hints.isEmpty {
+            lines.append("- Falls (und NUR falls) einer dieser Fachbegriffe im Text vorkommt, schreibe ihn korrekt: "
+                         + hints.joined(separator: ", ")
+                         + ". Diese Begriffe NIEMALS hinzufügen, wenn sie nicht vorkommen.")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    /// Struktur-Modus: gliedert langen Fließtext in Absätze, OHNE umzuformulieren.
+    /// Bewusst eigener Prompt (nicht der strikte Korrektur-Prompt), weil dieser
+    /// Absatz-Umbrüche braucht — der Korrektur-Prompt verbietet Strukturänderungen.
+    private func buildStructurePrompt(instruction: String, vocabularyHint: [String]) -> String {
+        var lines: [String] = [
+            "Du bist ein Lektorat-Werkzeug für diktierten Fließtext — KEIN Chatbot.",
+            "Du erhältst rohen, per Spracherkennung erzeugten Text. Deine Aufgabe:",
+            "denselben Text lesbar machen — korrekte Rechtschreibung, Zeichensetzung und",
+            "Groß-/Kleinschreibung — UND ihn in sinnvolle Absätze gliedern.",
+            "",
+            "Strikte Regeln:",
+            "- Trenne thematisch zusammengehörige Blöcke durch eine Leerzeile (echter Absatz).",
+            "- Behalte Wortwahl, Inhalt, Aussage und Ton EXAKT bei. Formuliere NICHT um, kürze nicht.",
+            "- Erfinde NICHTS. Füge keine Überschriften, Aufzählungen oder Wörter hinzu.",
+            "- Antworte NIEMALS auf den Inhalt. Stelle keine Rückfragen. Begrüße nicht.",
+            "- Bei kurzem Text (ein, zwei Sätze) keine künstlichen Umbrüche — gib ihn als einen Absatz zurück.",
+            "- Gib NUR den gegliederten Text aus — ohne Anführungszeichen, ohne Vor- oder Nachwort."
         ]
 
         let styleInstruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)

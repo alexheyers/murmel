@@ -33,6 +33,14 @@ enum AppStyleMapper {
                  "md.obsidian",
                  "net.shinyfrog.bear":
                 return .brainstorm
+            // Messenger: längere gesprochene Nachrichten gehören in Absätze gegliedert,
+            // statt als einem flachen Block zu landen (häufigster Diktat-Schmerzpunkt).
+            case "net.whatsapp.whatsapp",
+                 "com.apple.mobilesms",       // Nachrichten (iMessage)
+                 "com.tinyspeck.slackmacgap",
+                 "ru.keepcoder.telegram",
+                 "org.telegram.desktopnative":
+                return .structured
             default:
                 break
             }
@@ -49,6 +57,10 @@ enum AppStyleMapper {
             }
             if lower.contains("notion") || lower.contains("obsidian") {
                 return .brainstorm
+            }
+            if lower.contains("whatsapp") || lower.contains("slack") || lower.contains("telegram")
+                || lower.contains("nachrichten") || lower.contains("messages") {
+                return .structured
             }
         }
 

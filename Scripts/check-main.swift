@@ -39,6 +39,12 @@ check(!DictationStyle.raw.usesPolish, "Roh poliert nicht")
 check(DictationStyle.email.usesPolish && DictationStyle.claudePrompt.usesPolish, "andere Stile polieren")
 check(DictationStyle.allCases.allSatisfy { !$0.displayName.isEmpty }, "alle Stile haben Anzeigenamen")
 
+// Struktur-Modus (Absätze in langem Fließtext)
+check(DictationStyle.structured.isStructured, "Struktur-Modus: isStructured-Flag")
+check(DictationStyle.structured.usesPolish, "Struktur-Modus: poliert (Ollama)")
+check(DictationStyle.structured.usesEditableInstruction, "Struktur-Modus: Instruktion editierbar")
+check(!DictationStyle.structured.polishInstruction.isEmpty, "Struktur-Modus: hat Standard-Instruktion")
+
 let polisher = OllamaPolisher(baseURL: "http://127.0.0.1:1", model: "egal")
 let raw = await polisher.polish("unverändert", style: .raw, instruction: "", vocabularyHint: [])
 check(raw == "unverändert", "Roh-Stil: kein Netzwerk, Text 1:1")
@@ -96,6 +102,8 @@ check(TranscriptHygiene.collapseRepetitions(emphasis) == emphasis, "De-Loop: 3x 
 check(AppStyleMapper.style(forBundleId: "com.apple.Terminal", name: nil) == .raw, "Auto-Modus: Terminal → roh")
 check(AppStyleMapper.style(forBundleId: "com.apple.mail", name: nil) == .email, "Auto-Modus: Mail → email")
 check(AppStyleMapper.style(forBundleId: "com.unknown.app", name: "Foo") == nil, "Auto-Modus: Unbekannt → nil")
+check(AppStyleMapper.style(forBundleId: "net.whatsapp.WhatsApp", name: nil) == .structured, "Auto-Modus: WhatsApp → strukturiert")
+check(AppStyleMapper.style(forBundleId: nil, name: "Telegram") == .structured, "Auto-Modus: Telegram (Name) → strukturiert")
 
 print(failures == 0 ? "\nALLE CHECKS GRÜN" : "\n\(failures) CHECK(S) FEHLGESCHLAGEN")
 exit(failures == 0 ? 0 : 1)

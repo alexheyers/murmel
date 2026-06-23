@@ -14,6 +14,7 @@ enum AppPhase: Equatable {
 /// `.raw` überspringt die Politur komplett (Whisper-Ausgabe wird direkt eingefügt).
 enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     case raw
+    case structured
     case email
     case codeComment
     case claudePrompt
@@ -31,6 +32,7 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     var displayName: String {
         switch self {
         case .raw:          return "Roh"
+        case .structured:   return "Strukturiert"
         case .email:        return "E-Mail"
         case .codeComment:  return "Code-Kommentar"
         case .claudePrompt: return "Claude-Prompt"
@@ -48,6 +50,7 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
     var summary: String {
         switch self {
         case .raw:          return "Genau das gesprochene Wort, kein Modell dazwischen."
+        case .structured:   return "Deine Worte, sauber in Absätze gegliedert — Ton bleibt."
         case .email:        return "Höflicher, sauberer E-Mail-Fließtext."
         case .codeComment:  return "Knapper, technischer Kommentar- oder Commit-Text."
         case .claudePrompt: return "Klarer, strukturierter Prompt für einen KI-Assistenten."
@@ -60,6 +63,10 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .dataAssistant:return "Auftrag sprechen — sucht in DEINEN Daten (RAG) und fügt das Ergebnis ein."
         }
     }
+
+    /// Struktur-Modus: korrigiert UND gliedert langen Fließtext in Absätze.
+    /// Ton/Wortwahl bleiben — kein Umformulieren, keine Bullet-Liste.
+    var isStructured: Bool { self == .structured }
 
     /// Übersetzungs-Modus? Dann nutzt der Polisher einen Übersetzer-Prompt statt Korrektur.
     var isTranslation: Bool { self == .translateEN || self == .translateDE }
@@ -94,6 +101,10 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .raw:
             return ""
+        case .structured:
+            return "Gliedere den Text in sinnvolle Absätze: eine Leerzeile zwischen "
+                 + "thematisch zusammengehörigen Blöcken. Behalte Wortwahl und Ton bei, "
+                 + "formuliere nicht um. Kurze Texte (ein, zwei Sätze) NICHT künstlich umbrechen."
         case .email:
             return "Formuliere den Text als sauberen, höflichen E-Mail-Fließtext. "
                  + "Korrekte Rechtschreibung und Zeichensetzung, vollständige Sätze."
