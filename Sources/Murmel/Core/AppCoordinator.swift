@@ -83,7 +83,7 @@ final class AppCoordinator: ObservableObject {
         )
         self.transcriber = server          // finaler Lauf (warm)
         self.previewTranscriber = server   // Live-Vorschau (dasselbe Modell)
-        let pol = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel)
+        let pol = OllamaPolisher(baseURL: s.ollamaBaseURL, model: s.ollamaModel, structuredModel: s.formatModel)
         self.polisher = pol
         self.inserter = PasteboardInserter()
         self.hotkey = HotkeyMonitor(trigger: s.hotkeyTrigger)

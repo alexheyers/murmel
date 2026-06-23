@@ -109,6 +109,14 @@ final class Settings: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.conversationModel) }
     }
 
+    /// Modell für die Diktat-Formatierung (Stil „Strukturiert"). Default 7B: deutlich
+    /// zuverlässiger beim „nur formatieren, nicht antworten/siezen/erfinden", kostet kaum
+    /// mehr Zeit (gemessen ~+0,8 s). Andere Modi nutzen weiter `ollamaModel` (3B, schnell).
+    var formatModel: String {
+        get { defaults.string(forKey: Keys.formatModel) ?? "qwen2.5:7b" }
+        set { defaults.set(newValue, forKey: Keys.formatModel) }
+    }
+
     /// Python der Piper-venv (neuronale Sprachausgabe Thorsten). Default: ~/.claude/tts.
     var piperPythonPath: String {
         get { defaults.string(forKey: Keys.piperPython)
@@ -339,6 +347,7 @@ final class Settings: ObservableObject {
         static let ragTopK = "murmel.ragTopK"
         static let conversationEnabled = "murmel.conversationEnabled"
         static let conversationModel = "murmel.conversationModel"
+        static let formatModel = "murmel.formatModel"
         static let piperPython = "murmel.piperPython"
         static let piperModel = "murmel.piperModel"
         static let notionToken = "murmel.notionToken"

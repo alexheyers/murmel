@@ -16,6 +16,11 @@ final class OllamaPolisher: Polishing {
     /// Name des zu verwendenden Ollama-Modells, z. B. "llama3.2".
     private let model: String
 
+    /// Stärkeres Modell speziell für die Formatierung (Stil „Strukturiert"): zuverlässiger
+    /// bei „nur formatieren, nicht antworten/siezen/erfinden" — kostet kaum mehr Zeit.
+    /// nil → es wird `model` verwendet.
+    private let structuredModel: String?
+
     /// Eigene URLSession mit knappem Timeout, damit die Politur die
     /// Pipeline nie unangemessen lange blockiert.
     private let session: URLSession
@@ -23,12 +28,14 @@ final class OllamaPolisher: Polishing {
     /// - Parameters:
     ///   - baseURL: Adresse des Ollama-Servers (mit/ohne abschließenden Slash).
     ///   - model: Name des Ollama-Modells.
-    init(baseURL: String, model: String) {
+    ///   - structuredModel: optionales, stärkeres Modell nur für die Formatierung.
+    init(baseURL: String, model: String, structuredModel: String? = nil) {
         // Abschließende Slashes entfernen, damit wir sauber "/api/generate" anhängen können.
         self.baseURL = baseURL.hasSuffix("/")
             ? String(baseURL.reversed().drop(while: { $0 == "/" }).reversed())
             : baseURL
         self.model = model
+        self.structuredModel = structuredModel
 
         // Knappe Timeouts: lokales LLM darf nicht ewig hängen.
         let config = URLSessionConfiguration.default
@@ -64,7 +71,9 @@ final class OllamaPolisher: Polishing {
             } else {
                 system = buildSystemPrompt(instruction: instruction, vocabularyHint: vocabularyHint)
             }
-            let request = try makeChatRequest(system: system, userText: trimmedInput)
+            // Strukturiert nutzt das stärkere Formatier-Modell (zuverlässiger), Rest das Standard-Modell.
+            let useModel = style.isStructured ? (structuredModel ?? model) : model
+            let request = try makeChatRequest(model: useModel, system: system, userText: trimmedInput)
 
             let (data, response) = try await session.data(for: request)
 
@@ -114,7 +123,7 @@ final class OllamaPolisher: Polishing {
     /// Gibt nil zurück bei jedem Fehler.
     func complete(system: String, user: String) async -> String? {
         do {
-            let request = try makeChatRequest(system: system, userText: user)
+            let request = try makeChatRequest(model: model, system: system, userText: user)
             let (data, response) = try await session.data(for: request)
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 return nil
@@ -281,7 +290,7 @@ final class OllamaPolisher: Polishing {
     // MARK: - HTTP-Request (Ollama Chat-API)
 
     /// Baut den POST-Request an "<baseURL>/api/chat" mit System- und User-Nachricht.
-    private func makeChatRequest(system: String, userText: String) throws -> URLRequest {
+    private func makeChatRequest(model: String, system: String, userText: String) throws -> URLRequest {
         guard let url = URL(string: baseURL + "/api/chat") else {
             throw URLError(.badURL)
         }
