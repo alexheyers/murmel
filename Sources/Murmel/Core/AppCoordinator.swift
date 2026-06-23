@@ -101,8 +101,20 @@ final class AppCoordinator: ObservableObject {
         })
 
         // Gesprächs-Modus: eigene Chat-Engine (mit Verlauf) + neuronale Stimme (Piper/Thorsten).
+        // RAG-Retriever: bettet die Frage ein und holt die ähnlichsten Stellen aus den
+        // indexierten Daten — so antwortet Thorsten GEERDET auf den eigenen Daten.
         // Piper-Fallback = System-Stimme via `say` (nur falls Piper nicht installiert ist).
-        self.conversationEngine = ConversationEngine(baseURL: s.ollamaBaseURL, model: s.conversationModel)
+        let convTopK = s.ragTopK
+        self.conversationEngine = ConversationEngine(
+            baseURL: s.ollamaBaseURL,
+            model: s.conversationModel,
+            retrieve: { query in
+                guard let qv = await emb.embed(query) else { return "" }
+                let chunks = kstore.search(queryVector: qv, k: max(1, convTopK))
+                guard !chunks.isEmpty else { return "" }
+                return chunks.map { "[\($0.displayName)] \($0.text)" }.joined(separator: "\n\n")
+            }
+        )
         self.piperSpeaker = PiperSpeaker(
             pythonPath: s.piperPythonPath,
             modelPath: s.piperModelPath,
@@ -209,7 +221,7 @@ final class AppCoordinator: ObservableObject {
             try recorder.startRecording()
             conversationMode = true
             phase = .recording
-            Sounds.start()
+            Sounds.convStart()  // eigener Gesprächs-Ton (anders als fn-Diktat)
             // Bewusst KEIN Streaming-Overlay: im Gespräch entsteht kein Text zum Mitlesen.
         } catch {
             conversationMode = false
@@ -224,7 +236,7 @@ final class AppCoordinator: ObservableObject {
         Log.line("handleConversationRelease() — phase=\(String(describing: phase)) convMode=\(conversationMode)")
         guard conversationMode, phase == .recording else { return }
         conversationMode = false
-        Sounds.stop()
+        Sounds.convStop()
         let wav = recorder.stopRecording()
         phase = .transcribing
         Task { await runConversation(wav: wav) }
@@ -252,8 +264,8 @@ final class AppCoordinator: ObservableObject {
                 phase = .idle; Sounds.soft(); return
             }
             Log.line("Gespräch: Antwort \"\(answer)\"")
+            Sounds.convReady()
             piperSpeaker.speak(answer)
-            Sounds.done()
             phase = .idle
         } catch {
             cleanup(wav)

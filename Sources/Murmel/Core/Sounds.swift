@@ -16,4 +16,13 @@ enum Sounds {
     static func soft() { play("Bottle") }
     /// Fehler.
     static func fail() { play("Basso") }
+
+    // Gesprächs-Modus (rechte ⌥): bewusst ANDERE Töne als das Diktat (fn),
+    // damit man am Klang sofort hört, in welchem Modus man ist.
+    /// Gespräch beginnt (du sprichst).
+    static func convStart() { play("Submarine") }
+    /// Gespräch-Aufnahme endet (Murmel denkt nach).
+    static func convStop() { play("Morse") }
+    /// Antwort kommt (Thorsten spricht gleich).
+    static func convReady() { play("Hero") }
 }

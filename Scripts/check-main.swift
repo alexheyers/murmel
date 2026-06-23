@@ -108,6 +108,13 @@ check(!spoken.contains("*") && !spoken.contains("`") && spoken.contains("wichtig
       "Gespräch: spokenClean entfernt Markdown/Emoji  (\(spoken))")
 check(PiperSpeaker.piperArguments(modelPath: "M.onnx", outputWav: "out.wav")
       == ["-m", "piper", "-m", "M.onnx", "-f", "out.wav"], "Piper: CLI-Argumente korrekt")
+// RAG-Gespräch: Kontext wird als System-Block VOR der Frage eingefügt
+let ragMsgs = ConversationEngine.assembleForChat(history: [], context: "Projekt X startet im Juli.", user: "Wann startet Projekt X?")
+check(ragMsgs.count == 3 && ragMsgs[0]["role"] == "system" && ragMsgs[1]["role"] == "system"
+      && (ragMsgs[1]["content"] ?? "").contains("Projekt X startet") && ragMsgs[2]["role"] == "user",
+      "RAG-Gespräch: Kontext-Block korrekt vor der Frage")
+let noCtx = ConversationEngine.assembleForChat(history: [], context: "   ", user: "Hi")
+check(noCtx.count == 2, "RAG-Gespräch: leerer Kontext → kein Block")
 
 // Auto-Modus: App → Stil
 check(AppStyleMapper.style(forBundleId: "com.apple.Terminal", name: nil) == .raw, "Auto-Modus: Terminal → roh")
