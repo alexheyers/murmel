@@ -1,7 +1,23 @@
 # Murmel — Session-Übergabe
 
 > Laufende Übergabe-Doku. Beim nächsten Start zuerst lesen.
-> **Stand: 2026-06-22.** Murmel läuft end-to-end, installiert, alles committet & gepusht.
+> **Stand: 2026-06-23.** Murmel läuft end-to-end, installiert, alles committet (push offen — prüfen!).
+>
+> **Neu (23.06.) — Murmel wird zum sprechenden Voice-Agenten:**
+> 1. **Modus „Strukturiert"** (Commit `c253708`): gliedert diktierten Fließtext in Absätze (wortgetreu). Auto-Routing für Messenger (WhatsApp/Messages/Slack/Telegram). Reiches app-bewusstes Formatieren folgt mit 7B (3B zu schwach, live verifiziert).
+> 2. **Voice-Agent-Spec**: `docs/superpowers/specs/2026-06-23-murmel-voice-agent-design.md` — Vision (fn steuert alles), 5 Bausteine, gestufte Eskalation, Hybrid (lokal 7B Standard / Cloud Spitze). **Making-of**: `docs/making-of-voice-agent.html` (LinkedIn-fertig).
+> 3. **Eigene Stimme „Thorsten" (Piper)**: neuronal, lokal, gratis, unter `~/.claude/tts/` (venv + de_DE-thorsten-medium). macOS-Binary war kaputt → pip-venv-Weg (Python 3.14 + onnxruntime cp314).
+> 4. **Terminal spricht**: Claude-Code Stop-Hook (`~/.claude/tts/stop-hook.py`, in `~/.claude/settings.json`) liest Antworten mit Thorsten vor. Mute: `touch ~/.claude/tts/mute`. **Aktiv ab nächstem Claude-Code-Start.**
+> 5. **Gesprächs-Modus auf rechter ⌥** (Commits `831652b` + `45d7a7d`): halten → sprechen → Thorsten antwortet GESPROCHEN (kein Text). `ConversationEngine` (Ollama-Chat + Verlauf, 7B→3B-Fallback, **RAG-geerdet** auf indexierten Daten) + `PiperSpeaker` (Fallback System-`say`). Eigene Töne (Submarine/Morse/Hero). **Default-Modell qwen2.5:7B (gezogen).** Build + Selbsttest grün, live verifiziert.
+> 6. **App neu gebaut + installiert** (`make-app.sh` → `/Applications/Murmel.app`). Beide Hotkeys aktiv (Log bestätigt).
+>
+> **Offen / nächste Scheibe:**
+> - **Index ist LEER (0 Chunks).** Für „Kai auf meinen Daten" muss Alex einmal indexieren (App → Verwaltung → Wissens-Assistent). Erst dann ist das Gespräch RAG-geerdet.
+> - **Hands-free-Session**: ⌥ lang halten (>3s) → Thorsten begrüßt → freihändiger Dialog (braucht Sprechpausen-Erkennung/VAD).
+> - **git push** prüfen (Commits c253708…45d7a7d). **Notion-Doku** noch anlegen.
+>
+> ---
+> **Stand davor: 2026-06-22.** Murmel läuft end-to-end, installiert, alles committet & gepusht.
 > **Neu (22.06.):**
 > 1. **Vorschau-Server:** Live-Vorschau läuft jetzt über einen **residenten `whisper-server`** statt kalter `whisper-cli` pro Tick → ~3× schneller pro Update (gemessen 0,11 s statt 0,35 s), Takt 1,5 s → 0,7 s. Finaler Lauf (large-v3-turbo) unverändert.
 > 2. **Overlay-Fix (wichtig!):** Das Vorschau-Fenster war faktisch unsichtbar — Bug: Accessory-App ist nie „aktiv", Panel versteckte sich sofort wieder. Fix: `hidesOnDeactivate = false` + Floating-Panel-Flags in `LiveOverlay`. Per Log verifiziert (`visible=true`, Frame im unteren Bildschirmdrittel).
