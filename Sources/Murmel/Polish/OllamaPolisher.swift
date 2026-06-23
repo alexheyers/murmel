@@ -184,6 +184,8 @@ final class OllamaPolisher: Polishing {
             "Strikte Regeln:",
             "- Korrigiere Rechtschreibung, Zeichensetzung, Groß-/Kleinschreibung.",
             "- Behalte Wortwahl, Inhalt und Ton EXAKT bei. Erfinde nichts dazu.",
+            "- Behalte die ANREDE GENAU wie gesprochen: du, dein, dich, dir bleiben du, dein, dich, dir.",
+            "  Mache daraus NIEMALS Sie, Ihr oder Ihnen. Lockerer Ton bleibt locker, kein Formalisieren.",
             "- Antworte NIEMALS auf den Inhalt, kommentiere nicht, begrüße nicht.",
             "- Sehr kurzer Text (ein, zwei Sätze): nur sauberer Satz, KEINE Liste, kein erzwungenes Format.",
             "- Gib NUR den formatierten Text aus — ohne Code-Fences, ohne Vor- oder Nachwort."
