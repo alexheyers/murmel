@@ -21,10 +21,13 @@ final class ConversationEngine {
     /// den Nutzer-Daten ("Kai, die dich kennt").
     private let retrieve: ((String) async -> String)?
 
-    /// Gesprächsverlauf (ohne System-Prompt, ohne RAG-Kontext). Rollendes Fenster.
+    /// DAUERHAFTES Gesprächs-Gedächtnis — der KOMPLETTE Verlauf, persistiert auf Platte
+    /// (`~/.murmel/conversation.json`). Bleibt über Neustarts erhalten.
     private(set) var history: [[String: String]] = []
-    /// Wie viele Nachrichten (User+Assistent) maximal erhalten bleiben.
-    private let maxHistory = 12
+    /// So viele der jüngsten Nachrichten gehen als Kontext ins Modell (Prompt-Fenster) —
+    /// das VOLLE Gedächtnis bleibt gespeichert, nur der an das LLM gereichte Ausschnitt
+    /// ist begrenzt (sonst sprengt ein langer Verlauf irgendwann das Kontextfenster).
+    private let maxPromptMessages = 40
 
     init(baseURL: String, model: String, fallbackModel: String = "qwen2.5:3b",
          retrieve: ((String) async -> String)? = nil) {
@@ -39,10 +42,16 @@ final class ConversationEngine {
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 60
         self.session = URLSession(configuration: config)
+
+        // Dauerhaftes Gedächtnis von der Platte laden (über Neustarts hinweg).
+        self.history = Self.loadHistory()
     }
 
-    /// Verlauf löschen (neues Gespräch beginnen).
-    func reset() { history.removeAll() }
+    /// Gesamtes Gedächtnis löschen (auch von der Platte). Nur auf ausdrücklichen Wunsch.
+    func reset() {
+        history.removeAll()
+        try? FileManager.default.removeItem(at: MurmelPaths.conversationFile)
+    }
 
     /// Nimmt die gesprochene Nutzer-Äußerung, ergänzt den Verlauf, fragt Ollama
     /// und gibt die (gesprochen-bereinigte) Antwort zurück. `nil` bei Fehler.
@@ -54,9 +63,10 @@ final class ConversationEngine {
         let context = (await retrieve?(user)) ?? ""
         if !context.isEmpty { Log.line("ConversationEngine: RAG-Kontext (\(context.count) Zeichen)") }
 
-        // Chat-Nachrichten = System + Verlauf + (ephemerer) Kontext + Frage.
+        // Chat-Nachrichten = System + (jüngstes Verlaufs-Fenster) + (ephemerer) Kontext + Frage.
         // Der Kontext wird NICHT im Verlauf gespeichert (sonst wächst er ungebremst).
-        let chatMsgs = Self.assembleForChat(history: history, context: context, user: user)
+        let windowed = Array(history.suffix(maxPromptMessages))
+        let chatMsgs = Self.assembleForChat(history: windowed, context: context, user: user)
 
         // Erst primäres Modell, dann (bei „model not found") Fallback.
         var answer = await chat(model: model, messages: chatMsgs)
@@ -69,13 +79,25 @@ final class ConversationEngine {
         let spoken = Self.spokenClean(raw)
         guard !spoken.isEmpty else { return nil }
 
-        // Verlauf erst bei Erfolg fortschreiben (rollendes Fenster einhalten).
+        // Verlauf bei Erfolg fortschreiben UND dauerhaft speichern (volles Gedächtnis).
         history.append(["role": "user", "content": user])
         history.append(["role": "assistant", "content": spoken])
-        if history.count > maxHistory {
-            history.removeFirst(history.count - maxHistory)
-        }
+        saveHistory()
         return spoken
+    }
+
+    // MARK: - Dauerhaftes Gedächtnis (Platte)
+
+    private func saveHistory() {
+        guard let data = try? JSONSerialization.data(withJSONObject: history, options: [.prettyPrinted]) else { return }
+        try? data.write(to: MurmelPaths.conversationFile, options: .atomic)
+    }
+
+    nonisolated static func loadHistory() -> [[String: String]] {
+        guard let data = try? Data(contentsOf: MurmelPaths.conversationFile),
+              let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: String]]
+        else { return [] }
+        return arr
     }
 
     // MARK: - HTTP
@@ -114,22 +136,29 @@ final class ConversationEngine {
 
     // MARK: - Reine Logik (testbar ohne Netz)
 
-    /// System-Prompt: Murmel als gesprochener Assistent — kurz, natürlich, kein Markdown.
+    /// System-Prompt = editierbare Persona (`~/.murmel/persona.md`, von Alex anpassbar)
+    /// + nicht verhandelbare Betriebsregeln (Format, Grounding, Umgang mit Unklarem).
     nonisolated static func systemPrompt() -> String {
-        [
-            "Du bist Murmel, ein gesprochener Assistent auf dem Mac. Du UNTERHÄLTST dich —",
-            "deine Antworten werden laut vorgelesen.",
-            "",
-            "Regeln:",
-            "- Antworte auf Deutsch, kurz und natürlich, wie im Gespräch (1–4 Sätze).",
-            "- KEIN Markdown, KEINE Aufzählungen, KEINE Code-Blöcke, KEINE Emojis — reiner Fließtext.",
-            "- Komm auf den Punkt. Wenn du etwas nicht weißt, sag es ehrlich und kurz.",
-            "- Stelle höchstens EINE knappe Rückfrage, wenn nötig.",
-            "- Wird dir Kontext aus den Daten/der Notion des Nutzers gegeben, stütze deine Antwort darauf.",
-            "  Geht es um die KONKRETEN Daten/Projekte des Nutzers und der Kontext deckt das nicht ab,",
-            "  sag das ehrlich statt zu erfinden. ALLGEMEINE Fragen darfst du aus deinem Wissen beantworten."
-        ].joined(separator: "\n")
+        let persona = (try? String(contentsOf: MurmelPaths.personaFile, encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let identity = (persona?.isEmpty == false) ? persona! : MurmelPaths.defaultPersonaText
+        return identity + "\n\n" + operatingRules
     }
+
+    /// Harte Betriebsregeln — gelten IMMER, auch wenn die Persona editiert wird.
+    /// Verhindern das „frei drauflos reden" bei verhörter/leerer Eingabe.
+    nonisolated static let operatingRules = """
+    ## Betriebsregeln (immer)
+    - Deine Antworten werden vorgelesen: reiner Fließtext, KEIN Markdown, keine Listen, keine Emojis.
+    - Wenn die Eingabe unklar, sehr kurz oder offensichtlich falsch verstanden ist (Spracherkennung),
+      frag KURZ nach ("Das habe ich nicht ganz verstanden, sag es noch einmal") — fang NICHT an,
+      frei zu assoziieren oder dir ein Thema auszudenken.
+    - Nutze bereitgestellten Kontext (eigene Dateien / Notion) nur, wenn er klar zur Frage passt.
+      Passt nichts davon, ignoriere ihn.
+    - Geht es um Alex' konkrete Daten/Projekte und der Kontext deckt es nicht ab, sag das ehrlich.
+      ALLGEMEINE Wissensfragen darfst du normal aus deinem Wissen beantworten.
+    - Erfinde niemals Fakten über Alex, seine Projekte oder seine Daten.
+    """
 
     /// System-Prompt + Verlauf zu Ollama-Messages zusammensetzen (ohne RAG-Kontext).
     nonisolated static func assemble(_ history: [[String: String]]) -> [[String: String]] {
