@@ -24,6 +24,7 @@ swiftc -o "$OUT" \
     Sources/Murmel/Features/AppStyleMapper.swift \
     Sources/Murmel/Features/ConversationEngine.swift \
     Sources/Murmel/Features/PiperSpeaker.swift \
+    Sources/Murmel/Knowledge/NotionClient.swift \
     Sources/Murmel/Polish/OllamaPolisher.swift \
     Sources/Murmel/Transcription/WhisperServerTranscriber.swift \
     Sources/Murmel/Transcription/TranscriptHygiene.swift \

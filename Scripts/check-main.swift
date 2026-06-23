@@ -116,6 +116,16 @@ check(ragMsgs.count == 3 && ragMsgs[0]["role"] == "system" && ragMsgs[1]["role"]
 let noCtx = ConversationEngine.assembleForChat(history: [], context: "   ", user: "Hi")
 check(noCtx.count == 2, "RAG-Gespräch: leerer Kontext → kein Block")
 
+// Notion-Client: Parser (ohne Netz)
+let nSearch = #"{"results":[{"id":"abc","properties":{"Name":{"type":"title","title":[{"plain_text":"Architektur-Bausteine"}]}}}]}"#.data(using: .utf8)!
+let titles = NotionClient.parseSearchTitles(nSearch)
+check(titles.count == 1 && titles[0].id == "abc" && titles[0].title == "Architektur-Bausteine",
+      "Notion: Suchtreffer (id+Titel) geparst")
+let nBlocks = #"{"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"Hallo Welt"}]}},{"type":"heading_2","heading_2":{"rich_text":[{"plain_text":"Abschnitt"}]}}]}"#.data(using: .utf8)!
+let txt = NotionClient.extractPlainText(fromBlocks: nBlocks)
+check(txt.contains("Hallo Welt") && txt.contains("Abschnitt"), "Notion: Block-Klartext extrahiert  (\(txt.replacingOccurrences(of: "\n", with: " | ")))")
+check(NotionClient(token: "  ").isConfigured == false, "Notion: leerer Token → nicht konfiguriert")
+
 // Auto-Modus: App → Stil
 check(AppStyleMapper.style(forBundleId: "com.apple.Terminal", name: nil) == .raw, "Auto-Modus: Terminal → roh")
 check(AppStyleMapper.style(forBundleId: "com.apple.mail", name: nil) == .email, "Auto-Modus: Mail → email")

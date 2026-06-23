@@ -157,6 +157,14 @@ final class Settings: ObservableObject {
         set { defaults.set(newValue, forKey: Keys.ragTopK) }
     }
 
+    /// Notion-Integration-Token (BIZ-26-SSoT). Wird im Gesprächs-Modus genutzt, damit
+    /// Murmel geerdet auf den Notion-Inhalten antwortet. Leer = Notion aus.
+    /// NICHT im Code/Repo — nur lokal in UserDefaults (z. B. via `defaults write`).
+    var notionToken: String {
+        get { defaults.string(forKey: Keys.notionToken) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.notionToken) }
+    }
+
     /// Sinnvolle Start-Ordner für den Wissens-Assistenten — gibt von den Kandidaten
     /// NUR die zurück, die tatsächlich existieren:
     ///  - `~/Documents/Claude/Projects`
@@ -333,5 +341,6 @@ final class Settings: ObservableObject {
         static let conversationModel = "murmel.conversationModel"
         static let piperPython = "murmel.piperPython"
         static let piperModel = "murmel.piperModel"
+        static let notionToken = "murmel.notionToken"
     }
 }

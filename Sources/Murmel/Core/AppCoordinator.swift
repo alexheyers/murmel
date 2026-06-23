@@ -105,14 +105,26 @@ final class AppCoordinator: ObservableObject {
         // indexierten Daten — so antwortet Thorsten GEERDET auf den eigenen Daten.
         // Piper-Fallback = System-Stimme via `say` (nur falls Piper nicht installiert ist).
         let convTopK = s.ragTopK
+        let notion = NotionClient(token: s.notionToken)
         self.conversationEngine = ConversationEngine(
             baseURL: s.ollamaBaseURL,
             model: s.conversationModel,
             retrieve: { query in
-                guard let qv = await emb.embed(query) else { return "" }
-                let chunks = kstore.search(queryVector: qv, k: max(1, convTopK))
-                guard !chunks.isEmpty else { return "" }
-                return chunks.map { "[\($0.displayName)] \($0.text)" }.joined(separator: "\n\n")
+                var parts: [String] = []
+                // 1) Eigene indexierte Dateien (lokaler RAG).
+                if let qv = await emb.embed(query) {
+                    let chunks = kstore.search(queryVector: qv, k: max(1, convTopK))
+                    if !chunks.isEmpty {
+                        parts.append("Aus eigenen Dateien:\n"
+                            + chunks.map { "[\($0.displayName)] \($0.text)" }.joined(separator: "\n\n"))
+                    }
+                }
+                // 2) Notion (BIZ-26-SSoT) — live durchsucht.
+                let notionCtx = await notion.context(for: query)
+                if !notionCtx.isEmpty {
+                    parts.append("Aus Notion (BIZ 26):\n" + notionCtx)
+                }
+                return parts.joined(separator: "\n\n")
             }
         )
         self.piperSpeaker = PiperSpeaker(

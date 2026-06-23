@@ -125,8 +125,9 @@ final class ConversationEngine {
             "- KEIN Markdown, KEINE Aufzählungen, KEINE Code-Blöcke, KEINE Emojis — reiner Fließtext.",
             "- Komm auf den Punkt. Wenn du etwas nicht weißt, sag es ehrlich und kurz.",
             "- Stelle höchstens EINE knappe Rückfrage, wenn nötig.",
-            "- Wird dir Kontext aus den Daten des Nutzers gegeben, stütze deine Antwort darauf.",
-            "  Steht die Antwort nicht im Kontext, sag das ehrlich — erfinde nichts."
+            "- Wird dir Kontext aus den Daten/der Notion des Nutzers gegeben, stütze deine Antwort darauf.",
+            "  Geht es um die KONKRETEN Daten/Projekte des Nutzers und der Kontext deckt das nicht ab,",
+            "  sag das ehrlich statt zu erfinden. ALLGEMEINE Fragen darfst du aus deinem Wissen beantworten."
         ].joined(separator: "\n")
     }
 
