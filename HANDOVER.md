@@ -11,10 +11,12 @@
 > 5. **Gesprächs-Modus auf rechter ⌥** (Commits `831652b` + `45d7a7d`): halten → sprechen → Thorsten antwortet GESPROCHEN (kein Text). `ConversationEngine` (Ollama-Chat + Verlauf, 7B→3B-Fallback, **RAG-geerdet** auf indexierten Daten) + `PiperSpeaker` (Fallback System-`say`). Eigene Töne (Submarine/Morse/Hero). **Default-Modell qwen2.5:7B (gezogen).** Build + Selbsttest grün, live verifiziert.
 > 6. **App neu gebaut + installiert** (`make-app.sh` → `/Applications/Murmel.app`). Beide Hotkeys aktiv (Log bestätigt).
 >
-> **Offen / nächste Scheibe:**
-> - **Index ist LEER (0 Chunks).** Für „Kai auf meinen Daten" muss Alex einmal indexieren (App → Verwaltung → Wissens-Assistent). Erst dann ist das Gespräch RAG-geerdet.
+> **Offen / nächste Scheibe (priorisiert):**
+> - **⭐ Notion-Connector fürs Gespräch (Alex' Wunsch 23.06.):** Der Gesprächs-Assistent soll Zugriff auf die **BIZ-26-Notion (SSoT)** bekommen — das ist die wertvollste Wissensquelle, besser als Festplatten-Indexierung. **Weg A (empfohlen):** Live-Notion im RAG-Retriever (`AppCoordinator` `retrieve`-Closure erweitern) — pro Frage Notion-API-Suche → Treffer als Kontext. Token liegt in `~/.claude/memory/reference_credentials.md` (Abschnitt Notion). Secrets sicher in Murmel ablegen. Weg B: Notion → lokaler Index (offline-Sync). **Frisch/sorgfältig bauen, nicht übermüdet.**
+> - **Index ist LEER (0 Chunks).** Für „Kai auf lokalen Daten" muss Alex einmal indexieren (App → Verwaltung → Wissens-Assistent). Erst dann ist das Gespräch auf Dateien geerdet.
+> - **Gmail / „alle lokalen Dateien"-Connector**: eigene Sync/Tool-Features (nächste Scheiben).
 > - **Hands-free-Session**: ⌥ lang halten (>3s) → Thorsten begrüßt → freihändiger Dialog (braucht Sprechpausen-Erkennung/VAD).
-> - **git push** prüfen (Commits c253708…45d7a7d). **Notion-Doku** noch anlegen.
+> - **Erledigt 23.06.:** git push ✅ (bis `911e213`), Notion-Doku ✅ (Seite unter „P2 · Murmel").
 >
 > ---
 > **Stand davor: 2026-06-22.** Murmel läuft end-to-end, installiert, alles committet & gepusht.
