@@ -233,7 +233,25 @@ final class VocabularyStore: ObservableObject, VocabularyCorrecting {
         "docker": "Docker",
         "hostinger": "Hostinger",
         "ollama": "Ollama",
+        "olama": "Ollama",
+        "oh lama": "Ollama",
         "whisper": "Whisper",
+        "notion": "Notion",
+        "noschen": "Notion",
+        // „Agentic" wird gern zu „Argentique/Argenti" verhört.
+        "agentic": "Agentic",
+        "agentik": "Agentic",
+        "argentique": "Agentic",
+        "argenti": "Agentic",
+        // „Vibe Coding" → „Wiebe/Wibe/Weib Coding".
+        "vibe coding": "Vibe Coding",
+        "wibe coding": "Vibe Coding",
+        "wiebe coding": "Vibe Coding",
+        "weib coding": "Vibe Coding",
+        // Die Stimme + TTS.
+        "thorsten": "Thorsten",
+        "torsten": "Thorsten",
+        "piper": "Piper",
         // Die App selbst — Whisper verhört „Murmel" gern (z.B. „MoMel").
         "murmel": "Murmel",
         "momel": "Murmel",
