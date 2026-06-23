@@ -52,6 +52,16 @@ check(raw == "unverändert", "Roh-Stil: kein Netzwerk, Text 1:1")
 let fb = await polisher.polish("bitte nicht verlieren", style: .email, instruction: DictationStyle.email.polishInstruction, vocabularyHint: [])
 check(fb == "bitte nicht verlieren", "Ollama unerreichbar → Fallback auf Originaltext")
 
+// Wortgetreu-Schutz: Formatierung behält Wörter (hoch), Antwort/Umschreibung (niedrig)
+let keepHi = OllamaPolisher.wordRetention(
+    input: "für morgen drei dinge angebot rechnung kunde anrufen",
+    output: "Für morgen drei Dinge:\n1. Angebot\n2. Rechnung\n3. Kunde anrufen")
+check(keepHi >= 0.8, "Wort-Treue: Formatierung behält Wörter (\(keepHi))")
+let keepLo = OllamaPolisher.wordRetention(
+    input: "finde ich gut entwickeln wir uns zusammen weiter gespannt",
+    output: "Ich verstehe dass Sie eine Möglichkeit zur Zusammenarbeit vorschlagen bitte geben Sie den Text ein")
+check(keepLo < 0.6, "Wort-Treue: erfundene Antwort fällt durch (\(keepLo))")
+
 let entries = [
     HistoryEntry(id: 1, timestamp: Date(), raw: "ähm das ist ein test ähm wirklich", final: "x", style: .raw, app: "Test"),
     HistoryEntry(id: 2, timestamp: Date(), raw: "noch ein satz mit vielen wörtern hier drin", final: "x", style: .raw, app: "Terminal")

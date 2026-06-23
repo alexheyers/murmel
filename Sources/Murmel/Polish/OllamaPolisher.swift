@@ -94,6 +94,16 @@ final class OllamaPolisher: Polishing {
                 }
             }
 
+            // Wortgetreu-Schutz für „Strukturiert": Die Formatierung MUSS die gesprochenen
+            // Wörter behalten. Verliert die Ausgabe die meisten Eingabe-Wörter, hat das Modell
+            // GEANTWORTET/umgeschrieben statt zu formatieren → Rohtext zurückgeben.
+            // (Lieber unformatiert-aber-wahr als formatiert-aber-erfunden.)
+            if style.isStructured,
+               Self.wordRetention(input: trimmedInput, output: cleaned) < 0.6 {
+                Log.line("Polisher(structured): Wort-Treue zu niedrig → Rohtext (Modell hat geantwortet statt zu formatieren)")
+                return trimmedInput
+            }
+
             return cleaned
         } catch {
             return text
@@ -305,5 +315,24 @@ final class OllamaPolisher: Polishing {
             return nil
         }
         return content
+    }
+
+    // MARK: - Wortgetreu-Prüfung (reine Logik, testbar)
+
+    /// Anteil der „bedeutsamen" Eingabe-Wörter (≥3 Zeichen), die auch in der Ausgabe
+    /// vorkommen. 1.0 = alle behalten, ~0 = komplett umgeschrieben/geantwortet.
+    static func wordRetention(input: String, output: String) -> Double {
+        let inWords = significantWords(input)
+        guard !inWords.isEmpty else { return 1.0 }
+        let outSet = Set(significantWords(output))
+        let kept = inWords.filter { outSet.contains($0) }.count
+        return Double(kept) / Double(inWords.count)
+    }
+
+    private static func significantWords(_ s: String) -> [String] {
+        s.lowercased()
+            .split { !($0.isLetter || $0.isNumber) }
+            .map(String.init)
+            .filter { $0.count >= 3 }
     }
 }
