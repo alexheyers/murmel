@@ -98,6 +98,17 @@ check(TranscriptHygiene.collapseRepetitions(normal) == normal, "De-Loop: normale
 let emphasis = "nein nein nein war meine Antwort"
 check(TranscriptHygiene.collapseRepetitions(emphasis) == emphasis, "De-Loop: 3x Einzelwort-Betonung bleibt (Schwelle 6)")
 
+// Gesprächs-Modus: reine Logik
+let convMsgs = ConversationEngine.assemble([["role":"user","content":"Hallo"]])
+check(convMsgs.first?["role"] == "system", "Gespräch: erste Nachricht ist System-Prompt")
+check(convMsgs.count == 2 && convMsgs.last?["content"] == "Hallo", "Gespräch: Verlauf korrekt angehängt")
+check(!ConversationEngine.systemPrompt().isEmpty, "Gespräch: System-Prompt vorhanden")
+let spoken = ConversationEngine.spokenClean("Das ist **wichtig** und `code` 😀\nmehr.")
+check(!spoken.contains("*") && !spoken.contains("`") && spoken.contains("wichtig"),
+      "Gespräch: spokenClean entfernt Markdown/Emoji  (\(spoken))")
+check(PiperSpeaker.piperArguments(modelPath: "M.onnx", outputWav: "out.wav")
+      == ["-m", "piper", "-m", "M.onnx", "-f", "out.wav"], "Piper: CLI-Argumente korrekt")
+
 // Auto-Modus: App → Stil
 check(AppStyleMapper.style(forBundleId: "com.apple.Terminal", name: nil) == .raw, "Auto-Modus: Terminal → roh")
 check(AppStyleMapper.style(forBundleId: "com.apple.mail", name: nil) == .email, "Auto-Modus: Mail → email")

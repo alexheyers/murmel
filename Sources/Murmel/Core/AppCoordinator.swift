@@ -43,6 +43,14 @@ final class AppCoordinator: ObservableObject {
     private let history: HistoryStoring
     private let voiceCommands: VoiceCommandProcessing
 
+    // Gesprächs-Modus (rechte ⌥): sprechen → gesprochene Antwort (Thorsten/Piper), kein Text.
+    /// Zweiter, separater Hotkey-Tap nur für den Gesprächs-Modus.
+    private let conversationHotkey = HotkeyMonitor(trigger: .rightOption)
+    private let conversationEngine: ConversationEngine
+    private let piperSpeaker: PiperSpeaker
+    /// true, während eine GESPRÄCHS-Aufnahme läuft — trennt die Release-Logik vom Diktat.
+    private var conversationMode = false
+
     // RAG / Daten-Assistent
     private let knowledgeStore: KnowledgeStore
     private let knowledgeIndexer: KnowledgeIndexing
@@ -92,7 +100,22 @@ final class AppCoordinator: ObservableObject {
             await pol.complete(system: system, user: user)
         })
 
+        // Gesprächs-Modus: eigene Chat-Engine (mit Verlauf) + neuronale Stimme (Piper/Thorsten).
+        // Piper-Fallback = System-Stimme via `say` (nur falls Piper nicht installiert ist).
+        self.conversationEngine = ConversationEngine(baseURL: s.ollamaBaseURL, model: s.conversationModel)
+        self.piperSpeaker = PiperSpeaker(
+            pythonPath: s.piperPythonPath,
+            modelPath: s.piperModelPath,
+            fallback: { text in
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+                p.arguments = ["-v", "Anna", text]
+                try? p.run()
+            }
+        )
+
         wireHotkey()
+        wireConversationHotkey()
 
         // Vorschau-Server beim App-Beenden sauber stoppen (Process-Kinder sterben auf
         // macOS NICHT automatisch mit dem Elternprozess → sonst Zombie auf dem Port).
@@ -136,6 +159,18 @@ final class AppCoordinator: ObservableObject {
             phase = .error("Bedienungshilfen-Recht fehlt — bitte in den Systemeinstellungen erlauben.")
             lastError = phase == .idle ? nil : "Bedienungshilfen-Recht fehlt."
         }
+        startConversationHotkey()
+    }
+
+    /// Startet den Gesprächs-Tap (rechte ⌥) — nur wenn aktiviert und die rechte ⌥ nicht
+    /// schon als Diktat-Trigger belegt ist (sonst Konflikt). Idempotent.
+    func startConversationHotkey() {
+        guard settings.conversationEnabled, settings.hotkeyTrigger != .rightOption else {
+            conversationHotkey.stop()
+            return
+        }
+        let ok = conversationHotkey.start()
+        Log.line("AppCoordinator.startConversationHotkey() → \(ok ? "aktiv" : "FEHLGESCHLAGEN")")
     }
 
     /// Trigger zur Laufzeit wechseln (aus den Einstellungen).
@@ -149,6 +184,83 @@ final class AppCoordinator: ObservableObject {
         }
         hotkey.onRelease = { [weak self] in
             Task { @MainActor in self?.handleRelease() }
+        }
+    }
+
+    private func wireConversationHotkey() {
+        conversationHotkey.onPress = { [weak self] in
+            Task { @MainActor in self?.handleConversationPress() }
+        }
+        conversationHotkey.onRelease = { [weak self] in
+            Task { @MainActor in self?.handleConversationRelease() }
+        }
+    }
+
+    // MARK: - Gesprächs-Modus (rechte ⌥)
+
+    private func handleConversationPress() {
+        guard settings.conversationEnabled else { return }
+        Log.line("handleConversationPress() — phase=\(String(describing: phase))")
+        guard phase == .idle || isErrorPhase else {
+            Log.line("handleConversationPress() ignoriert (phase nicht idle)")
+            return
+        }
+        do {
+            try recorder.startRecording()
+            conversationMode = true
+            phase = .recording
+            Sounds.start()
+            // Bewusst KEIN Streaming-Overlay: im Gespräch entsteht kein Text zum Mitlesen.
+        } catch {
+            conversationMode = false
+            phase = .error(error.localizedDescription)
+            lastError = error.localizedDescription
+            Sounds.fail()
+            resetToIdleSoon()
+        }
+    }
+
+    private func handleConversationRelease() {
+        Log.line("handleConversationRelease() — phase=\(String(describing: phase)) convMode=\(conversationMode)")
+        guard conversationMode, phase == .recording else { return }
+        conversationMode = false
+        Sounds.stop()
+        let wav = recorder.stopRecording()
+        phase = .transcribing
+        Task { await runConversation(wav: wav) }
+    }
+
+    /// Gesprächs-Pipeline: Aufnahme → Transkription → Chat (mit Verlauf) → gesprochene Antwort.
+    /// Fügt KEINEN Text ein und schreibt NICHT in den Diktat-Verlauf.
+    private func runConversation(wav: URL?) async {
+        guard let wav else { phase = .idle; Sounds.soft(); return }
+        do {
+            let transcribed = try await transcriber.transcribe(wav, prompt: currentWhisperPrompt())
+            let collapsed = TranscriptHygiene.collapseRepetitions(transcribed)
+            let raw = collapsed.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty, !TranscriptHygiene.isLikelyHallucination(raw) else {
+                Log.line("Gespräch: nichts Verständliches erkannt")
+                cleanup(wav); phase = .idle; Sounds.soft(); return
+            }
+            Log.line("Gespräch: du sagst \"\(raw)\"")
+
+            phase = .polishing  // „denkt nach"
+            let answer = await conversationEngine.respond(to: raw)
+            cleanup(wav)
+            guard let answer, !answer.isEmpty else {
+                Log.line("Gespräch: keine Antwort (Ollama aus / Modell fehlt)")
+                phase = .idle; Sounds.soft(); return
+            }
+            Log.line("Gespräch: Antwort \"\(answer)\"")
+            piperSpeaker.speak(answer)
+            Sounds.done()
+            phase = .idle
+        } catch {
+            cleanup(wav)
+            phase = .error(error.localizedDescription)
+            lastError = error.localizedDescription
+            Sounds.fail()
+            resetToIdleSoon()
         }
     }
 

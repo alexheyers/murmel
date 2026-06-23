@@ -22,6 +22,8 @@ swiftc -o "$OUT" \
     Sources/Murmel/Features/VoiceCommandProcessor.swift \
     Sources/Murmel/Features/SpeechAnalyzer.swift \
     Sources/Murmel/Features/AppStyleMapper.swift \
+    Sources/Murmel/Features/ConversationEngine.swift \
+    Sources/Murmel/Features/PiperSpeaker.swift \
     Sources/Murmel/Polish/OllamaPolisher.swift \
     Sources/Murmel/Transcription/WhisperServerTranscriber.swift \
     Sources/Murmel/Transcription/TranscriptHygiene.swift \

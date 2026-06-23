@@ -39,6 +39,13 @@ final class Settings: ObservableObject {
         didSet { defaults.set(speakAnswers, forKey: Keys.speakAnswers) }
     }
 
+    /// Gesprächs-Modus: rechte ⌥-Taste halten → sprechen → Murmel ANTWORTET gesprochen
+    /// (Thorsten/Piper), kein Text wird eingefügt. Mehrstufiger Dialog mit Gedächtnis.
+    /// Standardmäßig AN. fn bleibt unverändert das Diktat.
+    @Published var conversationEnabled: Bool {
+        didSet { defaults.set(conversationEnabled, forKey: Keys.conversationEnabled) }
+    }
+
     /// Schnelles Modell für die Live-Vorschau (klein, lädt schnell). Final bleibt large-v3-turbo.
     var previewModelPath: String {
         get { defaults.string(forKey: Keys.previewModel) ?? MurmelPaths.modelsDir.appendingPathComponent("ggml-base.bin").path }
@@ -93,6 +100,27 @@ final class Settings: ObservableObject {
     var ollamaModel: String {
         get { defaults.string(forKey: Keys.ollamaModel) ?? "qwen2.5:3b" }
         set { defaults.set(newValue, forKey: Keys.ollamaModel) }
+    }
+
+    /// Modell für den Gesprächs-Modus. Default 7B (bessere Dialoge); fällt in der
+    /// Engine bei „model not found" automatisch auf qwen2.5:3b zurück.
+    var conversationModel: String {
+        get { defaults.string(forKey: Keys.conversationModel) ?? "qwen2.5:7b" }
+        set { defaults.set(newValue, forKey: Keys.conversationModel) }
+    }
+
+    /// Python der Piper-venv (neuronale Sprachausgabe Thorsten). Default: ~/.claude/tts.
+    var piperPythonPath: String {
+        get { defaults.string(forKey: Keys.piperPython)
+                ?? NSHomeDirectory() + "/.claude/tts/venv/bin/python" }
+        set { defaults.set(newValue, forKey: Keys.piperPython) }
+    }
+
+    /// Piper-Stimmmodell (.onnx). Default: Thorsten-medium unter ~/.claude/tts.
+    var piperModelPath: String {
+        get { defaults.string(forKey: Keys.piperModel)
+                ?? NSHomeDirectory() + "/.claude/tts/voices/de_DE-thorsten-medium.onnx" }
+        set { defaults.set(newValue, forKey: Keys.piperModel) }
     }
 
     /// Sprachcode für Whisper (ISO 639-1).
@@ -187,6 +215,13 @@ final class Settings: ObservableObject {
         self.autoStyleByApp = defaults.bool(forKey: Keys.autoStyleByApp)
 
         self.speakAnswers = defaults.bool(forKey: Keys.speakAnswers)
+
+        // Gesprächs-Modus standardmäßig AN (rechte ⌥). Beim allerersten Start ist der
+        // Bool-Default false → einmalig auf true setzen, wenn noch nie gesetzt.
+        if defaults.object(forKey: Keys.conversationEnabled) == nil {
+            defaults.set(true, forKey: Keys.conversationEnabled)
+        }
+        self.conversationEnabled = defaults.bool(forKey: Keys.conversationEnabled)
 
         if #available(macOS 13.0, *) {
             self.launchAtLogin = (SMAppService.mainApp.status == .enabled)
@@ -294,5 +329,9 @@ final class Settings: ObservableObject {
         static let knowledgeFolders = "murmel.knowledgeFolders"
         static let embedModel = "murmel.embedModel"
         static let ragTopK = "murmel.ragTopK"
+        static let conversationEnabled = "murmel.conversationEnabled"
+        static let conversationModel = "murmel.conversationModel"
+        static let piperPython = "murmel.piperPython"
+        static let piperModel = "murmel.piperModel"
     }
 }
