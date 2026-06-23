@@ -156,3 +156,19 @@ Hands-free-Dialog, reiches app-bewusstes Formatieren des Strukturiert-Modus (bra
 - **2026-06-23:** Default-Agent-Modell = **qwen2.5:7B** (M1 Pro/16 GB); 14B/Claude nur Spitze.
 - **2026-06-23:** Erste Scheibe = **Agent-Modus mit Intent-Router + 3 Werkzeugen + Bestätigung.**
 - **2026-06-23:** Sprach-Ausgabe = **intent-gesteuert**; Hands-free-Dialog später.
+- **2026-06-23:** Stimme = **Piper / Thorsten** (neuronal, lokal, gratis) — Wahl gegen Cloud/ElevenLabs.
+- **2026-06-23:** **Gesprächs-Modus auf rechter ⌥** gebaut (Push-to-talk: halten → sprechen → gesprochene Antwort).
+
+## 13. Heute umgesetzt (2026-06-23)
+
+1. **Modus „Strukturiert"** (Commit `c253708`) — gliedert Diktat in Absätze, Messenger-Auto-Routing.
+2. **Spec** (dieses Dokument) + Piper/Thorsten lokal installiert (`~/.claude/tts`).
+3. **Terminal-Stimme** — Claude-Code Stop-Hook liest Antworten mit Thorsten vor (Mute: `~/.claude/tts/mute`).
+4. **Gesprächs-Modus** (Commit `831652b`) — rechte ⌥ halten → sprechen → Thorsten antwortet. `ConversationEngine` (Ollama-Chat + Verlauf, 7B→3B-Fallback) + `PiperSpeaker`. Build + Selbsttest grün, live verifiziert.
+
+## 14. Nächste Scheibe — Hands-free-Session (Lang-Druck ⌥)
+
+Statt Push-to-talk: **⌥ länger als ~3 s halten → Thorsten begrüßt → freihändiger Dialog**
+(sprechen ↔ antworten ohne Tastenhalten), bis Sitzungsende (erneuter Druck / „Tschüss").
+Braucht **Sprechpausen-Erkennung (VAD/Silence-Detection)** für das Turn-Taking — der
+eigentliche Mehraufwand. Baut auf `ConversationEngine`/`PiperSpeaker` auf.
