@@ -157,23 +157,31 @@ final class OllamaPolisher: Polishing {
     /// Absatz-Umbrüche braucht — der Korrektur-Prompt verbietet Strukturänderungen.
     private func buildStructurePrompt(instruction: String, vocabularyHint: [String]) -> String {
         var lines: [String] = [
-            "Du bist ein Lektorat-Werkzeug für diktierten Fließtext — KEIN Chatbot.",
-            "Du erhältst rohen, per Spracherkennung erzeugten Text. Deine Aufgabe:",
-            "denselben Text lesbar machen — korrekte Rechtschreibung, Zeichensetzung und",
-            "Groß-/Kleinschreibung — UND ihn in sinnvolle Absätze gliedern.",
+            "Du bist ein Formatier-Werkzeug für diktierten Text — KEIN Chatbot, KEIN Autor.",
+            "Du machst rohen Sprach-zu-Text gut lesbar — durch FORMAT (Markdown), nicht durch neue Worte.",
+            "",
+            "GRUNDREGEL: Übernimm JEDES Wort des Roh-Textes in gleicher Reihenfolge. Du fügst nur hinzu:",
+            "Satzzeichen, Zeilenumbrüche und Markdown-Zeichen. Du ersetzt/streichst/erfindest KEIN Wort,",
+            "keine Synonyme, keine umgestellten Sätze, keine Füllwörter.",
+            "",
+            "So formatierst du (so viel wie der Inhalt hergibt, sonst nichts):",
+            "- AUFZÄHLUNGEN erkennen und als Liste setzen: wenn der Text Dinge nacheinander nennt",
+            "  (\"erstens … zweitens …\", \"eins, zwei, drei\", \"Punkt eins …\", oder klar getrennte Punkte),",
+            "  schreibe jede als eigene Zeile mit \"- \" (oder \"1. \" \"2. \" bei nummerierter Reihenfolge).",
+            "- ABSÄTZE: Leerzeile zwischen verschiedenen Gedanken/Themen.",
+            "- **fett** für die zentrale Aussage, *kursiv* für eine Betonung — immer um vorhandene Wörter.",
             "",
             "Strikte Regeln:",
-            "- Trenne thematisch zusammengehörige Blöcke durch eine Leerzeile (echter Absatz).",
-            "- Behalte Wortwahl, Inhalt, Aussage und Ton EXAKT bei. Formuliere NICHT um, kürze nicht.",
-            "- Erfinde NICHTS. Füge keine Überschriften, Aufzählungen oder Wörter hinzu.",
-            "- Antworte NIEMALS auf den Inhalt. Stelle keine Rückfragen. Begrüße nicht.",
-            "- Bei kurzem Text (ein, zwei Sätze) keine künstlichen Umbrüche — gib ihn als einen Absatz zurück.",
-            "- Gib NUR den gegliederten Text aus — ohne Anführungszeichen, ohne Vor- oder Nachwort."
+            "- Korrigiere Rechtschreibung, Zeichensetzung, Groß-/Kleinschreibung.",
+            "- Behalte Wortwahl, Inhalt und Ton EXAKT bei. Erfinde nichts dazu.",
+            "- Antworte NIEMALS auf den Inhalt, kommentiere nicht, begrüße nicht.",
+            "- Sehr kurzer Text (ein, zwei Sätze): nur sauberer Satz, KEINE Liste, kein erzwungenes Format.",
+            "- Gib NUR den formatierten Text aus — ohne Code-Fences, ohne Vor- oder Nachwort."
         ]
 
         let styleInstruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         if !styleInstruction.isEmpty {
-            lines.append("- Stil: \(styleInstruction)")
+            lines.append("- Zusätzlich: \(styleInstruction)")
         }
 
         let hints = vocabularyHint
@@ -181,9 +189,21 @@ final class OllamaPolisher: Polishing {
             .filter { !$0.isEmpty }
         if !hints.isEmpty {
             lines.append("- Falls (und NUR falls) einer dieser Fachbegriffe im Text vorkommt, schreibe ihn korrekt: "
-                         + hints.joined(separator: ", ")
-                         + ". Diese Begriffe NIEMALS hinzufügen, wenn sie nicht vorkommen.")
+                         + hints.joined(separator: ", ") + ".")
         }
+
+        // Beispiel ZULETZT (das Modell ahmt das Letzte am stärksten nach; verhindert Regel-Leak).
+        lines.append(contentsOf: [
+            "",
+            "— BEISPIEL (zeigt nur die Arbeitsweise; übernimm NICHTS von seinem Inhalt) —",
+            "ROH: also für morgen drei dinge erstens den entwurf fertig machen zweitens steuer mappe sortieren drittens timo anrufen",
+            "FORMATIERT:",
+            "Also für morgen drei Dinge:",
+            "",
+            "1. Den Entwurf fertig machen.",
+            "2. Steuer-Mappe sortieren.",
+            "3. Timo anrufen."
+        ])
 
         return lines.joined(separator: "\n")
     }

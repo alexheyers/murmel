@@ -102,9 +102,8 @@ enum DictationStyle: String, CaseIterable, Codable, Identifiable {
         case .raw:
             return ""
         case .structured:
-            return "Gliedere den Text in sinnvolle Absätze: eine Leerzeile zwischen "
-                 + "thematisch zusammengehörigen Blöcken. Behalte Wortwahl und Ton bei, "
-                 + "formuliere nicht um. Kurze Texte (ein, zwei Sätze) NICHT künstlich umbrechen."
+            return "Formatiere automatisch klug: Aufzählungen als Liste, Themen als Absätze, "
+                 + "Wichtiges fett. Wortgetreu — nur Format, keine neuen Worte."
         case .email:
             return "Formuliere den Text als sauberen, höflichen E-Mail-Fließtext. "
                  + "Korrekte Rechtschreibung und Zeichensetzung, vollständige Sätze."

@@ -209,8 +209,11 @@ final class Settings: ObservableObject {
     // MARK: Init
 
     private init() {
-        let styleRaw = defaults.string(forKey: Keys.style) ?? DictationStyle.raw.rawValue
-        self.currentStyle = DictationStyle(rawValue: styleRaw) ?? .raw
+        // Standard = „Strukturiert": Diktate werden automatisch klug formatiert
+        // (Listen bei Aufzählungen, Absätze, Hervorhebungen). Wer 1:1-Wortlaut will,
+        // wählt „Roh" im Menü.
+        let styleRaw = defaults.string(forKey: Keys.style) ?? DictationStyle.structured.rawValue
+        self.currentStyle = DictationStyle(rawValue: styleRaw) ?? .structured
 
         let triggerRaw = defaults.string(forKey: Keys.trigger) ?? HotkeyTrigger.fn.rawValue
         self.hotkeyTrigger = HotkeyTrigger(rawValue: triggerRaw) ?? .fn
@@ -224,11 +227,8 @@ final class Settings: ObservableObject {
 
         self.speakAnswers = defaults.bool(forKey: Keys.speakAnswers)
 
-        // Gesprächs-Modus standardmäßig AN (rechte ⌥). Beim allerersten Start ist der
-        // Bool-Default false → einmalig auf true setzen, wenn noch nie gesetzt.
-        if defaults.object(forKey: Keys.conversationEnabled) == nil {
-            defaults.set(true, forKey: Keys.conversationEnabled)
-        }
+        // Gesprächs-Modus (rechte ⌥) standardmäßig AUS — Fokus liegt wieder auf
+        // gutem Diktat/Formatieren. Code bleibt vorhanden, lässt sich später reaktivieren.
         self.conversationEnabled = defaults.bool(forKey: Keys.conversationEnabled)
 
         if #available(macOS 13.0, *) {
