@@ -217,11 +217,11 @@ final class Settings: ObservableObject {
     // MARK: Init
 
     private init() {
-        // Standard = „Strukturiert": Diktate werden automatisch klug formatiert
-        // (Listen bei Aufzählungen, Absätze, Hervorhebungen). Wer 1:1-Wortlaut will,
-        // wählt „Roh" im Menü.
-        let styleRaw = defaults.string(forKey: Keys.style) ?? DictationStyle.structured.rawValue
-        self.currentStyle = DictationStyle(rawValue: styleRaw) ?? .structured
+        // Standard = „Roh" (wortwörtlich): Murmel ändert NIE ein Wort. Vertrauen zuerst.
+        // Ein lokales LLM formatiert nicht zuverlässig wortgetreu — es formalisiert/erfindet.
+        // Formatierung („Strukturiert") gibt es nur, wenn der Nutzer sie bewusst im Menü wählt.
+        let styleRaw = defaults.string(forKey: Keys.style) ?? DictationStyle.raw.rawValue
+        self.currentStyle = DictationStyle(rawValue: styleRaw) ?? .raw
 
         let triggerRaw = defaults.string(forKey: Keys.trigger) ?? HotkeyTrigger.fn.rawValue
         self.hotkeyTrigger = HotkeyTrigger(rawValue: triggerRaw) ?? .fn
