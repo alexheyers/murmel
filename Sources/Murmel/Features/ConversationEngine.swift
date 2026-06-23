@@ -149,15 +149,19 @@ final class ConversationEngine {
     /// Verhindern das „frei drauflos reden" bei verhörter/leerer Eingabe.
     nonisolated static let operatingRules = """
     ## Betriebsregeln (immer)
-    - Deine Antworten werden vorgelesen: reiner Fließtext, KEIN Markdown, keine Listen, keine Emojis.
-    - Wenn die Eingabe unklar, sehr kurz oder offensichtlich falsch verstanden ist (Spracherkennung),
-      frag KURZ nach ("Das habe ich nicht ganz verstanden, sag es noch einmal") — fang NICHT an,
-      frei zu assoziieren oder dir ein Thema auszudenken.
-    - Nutze bereitgestellten Kontext (eigene Dateien / Notion) nur, wenn er klar zur Frage passt.
-      Passt nichts davon, ignoriere ihn.
-    - Geht es um Alex' konkrete Daten/Projekte und der Kontext deckt es nicht ab, sag das ehrlich.
-      ALLGEMEINE Wissensfragen darfst du normal aus deinem Wissen beantworten.
-    - Erfinde niemals Fakten über Alex, seine Projekte oder seine Daten.
+    - Antworte auf die konkrete FRAGE — direkt, gesprochen, in EIGENEN Worten. Du führst ein
+      Gespräch, keinen Vortrag.
+    - Lies den bereitgestellten Kontext NIEMALS vor und zähle ihn NICHT als Liste auf. Nimm daraus
+      NUR das eine, das die Frage beantwortet, und fasse es in ein, zwei Sätzen zusammen.
+    - Reiner Fließtext: KEIN Markdown, KEINE Aufzählungen, KEINE Nummerierung, keine Emojis
+      (du wirst vorgelesen).
+    - Findest du im Kontext keine Antwort auf die FRAGE, sag das in EINEM kurzen Satz
+      ("Dazu finde ich gerade nichts in deinen Daten") — recitiere NICHT ersatzweise etwas anderes.
+    - Bei unklarer oder offensichtlich verhörter Eingabe: kurz nachfragen statt zu raten.
+    - Allgemeine Wissensfragen normal aus deinem Wissen beantworten. Erfinde nie Fakten über Alex.
+    - Halte dich kurz: höchstens drei Sätze, außer es wird ausdrücklich mehr verlangt.
+    - KEINE Regieanweisungen, KEINE Platzhalter, kein "Lass mich nachsehen" oder "[Suche…]".
+      Du hast den Kontext bereits — antworte sofort und direkt mit dem Ergebnis.
     """
 
     /// System-Prompt + Verlauf zu Ollama-Messages zusammensetzen (ohne RAG-Kontext).

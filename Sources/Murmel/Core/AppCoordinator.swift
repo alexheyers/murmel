@@ -111,16 +111,17 @@ final class AppCoordinator: ObservableObject {
             model: s.conversationModel,
             retrieve: { query in
                 var parts: [String] = []
-                // 1) Eigene indexierte Dateien (lokaler RAG).
+                // 1) Eigene indexierte Dateien (lokaler RAG) — knapp halten (Top 3).
                 if let qv = await emb.embed(query) {
-                    let chunks = kstore.search(queryVector: qv, k: max(1, convTopK))
+                    let chunks = kstore.search(queryVector: qv, k: min(3, max(1, convTopK)))
                     if !chunks.isEmpty {
                         parts.append("Aus eigenen Dateien:\n"
                             + chunks.map { "[\($0.displayName)] \($0.text)" }.joined(separator: "\n\n"))
                     }
                 }
-                // 2) Notion (BIZ-26-SSoT) — live durchsucht.
-                let notionCtx = await notion.context(for: query)
+                // 2) Notion (BIZ-26-SSoT) — live, bewusst KNAPP (2 Seiten, ~1500 Zeichen),
+                //    damit das Modell synthetisiert statt eine ganze Seite vorzulesen.
+                let notionCtx = await notion.context(for: query, maxPages: 2, maxChars: 1500)
                 if !notionCtx.isEmpty {
                     parts.append("Aus Notion (BIZ 26):\n" + notionCtx)
                 }
