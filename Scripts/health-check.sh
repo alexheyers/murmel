@@ -61,7 +61,17 @@ style="$(defaults read de.alexheyers.murmel murmel.style 2>/dev/null || echo '?'
 conv="$(defaults read de.alexheyers.murmel murmel.conversationEnabled 2>/dev/null || echo '?')"
 ok+=("Config: Stil=${style}, Voice-Agent=${conv}")
 
-# 6) Freier Speicher.
+# 6) Mikro-Eingangspegel — zu leise (z.B. von Teams gesenkt) → wieder anheben.
+#    Niedriger Pegel = whisper bekommt zu wenig Signal = Verhörer bei leisem Sprechen.
+miclevel="$(osascript -e 'input volume of (get volume settings)' 2>/dev/null || echo '?')"
+if [ "${miclevel}" != "?" ] && [ "${miclevel:-0}" -lt 70 ] 2>/dev/null; then
+  osascript -e 'set volume input volume 90' >/dev/null 2>&1
+  issues+=("Mikro-Pegel war ${miclevel}% (zu leise) -> auf 90% angehoben")
+else
+  ok+=("Mikro-Pegel: ${miclevel}%")
+fi
+
+# 7) Freier Speicher.
 ok+=("Frei: $(df -h / | awk 'NR==2{print $4}')")
 
 # --- Bericht schreiben ---
