@@ -163,6 +163,8 @@ final class AppCoordinator: ObservableObject {
             Permissions.requestAccessibility()
         }
         startHotkey()
+        // Audio-Engine vorwärmen → erstes Diktat verschluckt nicht den Sprech-Anfang.
+        recorder.warmUp()
         // Turbo-Server IMMER vorwärmen — der finale Lauf nutzt ihn jetzt auch (nicht nur
         // die Vorschau). So ist das Modell vor dem ersten Diktat geladen (sonst ~1,5 s extra).
         previewTranscriber.ensureRunning()

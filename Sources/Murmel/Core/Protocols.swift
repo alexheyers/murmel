@@ -25,6 +25,8 @@ protocol AudioRecording: AnyObject {
     /// - Parameter maxSeconds: >0 → nur das letzte Zeitfenster dieser Länge (gleitendes
     ///   Fenster für schnelle Vorschau bei langen Diktaten); 0 → alles bisher Aufgenommene.
     func snapshotWAV(maxSeconds: Double) -> URL?
+    /// Wärmt die Audio-Engine beim App-Start vor (gegen Onset-Clipping beim ersten Diktat).
+    func warmUp()
 }
 
 /// Wandelt eine WAV-Datei in Text (whisper.cpp).

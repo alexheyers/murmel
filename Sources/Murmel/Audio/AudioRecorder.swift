@@ -64,6 +64,16 @@ final class AudioRecorder: AudioRecording {
 
     init() {}
 
+    /// Wärmt die Audio-Engine beim App-Start vor: initialisiert den CoreAudio-Graphen,
+    /// damit der ERSTE echte `startRecording()` nicht durch den Kaltstart den Sprech-Anfang
+    /// verschluckt (kurze Befehle wie „Starte …" verloren sonst das erste Wort).
+    /// Startet KEINE Aufnahme — kein Mikrofon-Lämpchen, keine Daten.
+    func warmUp() {
+        _ = engine.inputNode.outputFormat(forBus: 0)
+        engine.prepare()
+        Log.line("AudioRecorder: Engine vorgewärmt")
+    }
+
     // MARK: - AudioRecording
 
     /// Startet die Aufnahme vom Standard-Mikrofon.
