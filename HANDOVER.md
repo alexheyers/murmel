@@ -1,6 +1,10 @@
 # Murmel — Session-Übergabe
 
 > Laufende Übergabe-Doku. Beim nächsten Start zuerst lesen.
+> **Stand: 2026-06-24 (früh).** Murmel läuft, installiert, alles committet & gepusht.
+> **Nacht-Ergebnis:** Diktat-Standard = **„Roh"/wortwörtlich** (Vertrauens-Fix — lokales LLM formatiert nicht zuverlässig wortgetreu; „Strukturiert" nur noch manuell wählbar). **Voice-Agent AUS** (⌥ inaktiv). **Terminal-TTS-Hook entfernt** (mute + aus settings.json). **Lokaler Wissens-Index GEFÜLLT: 1.975 Dateien / 58.009 Chunks / 0 Fehler** (`~/.murmel/knowledge.sqlite`, headless via reuse der echten Klassen). Nächste Scheibe: Abfrage-Weg „Cursor → fn → such im Index → Antwort am Cursor" + Index frisch halten (inkrementell). Details: `docs/assistant-journal/2026-06-24-morgen-notiz.md`.
+>
+> ---
 > **Stand: 2026-06-23.** Murmel läuft end-to-end, installiert, alles committet (push offen — prüfen!).
 >
 > **Neu (23.06.) — Murmel wird zum sprechenden Voice-Agenten:**

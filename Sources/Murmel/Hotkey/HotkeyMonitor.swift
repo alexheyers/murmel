@@ -118,6 +118,15 @@ final class HotkeyMonitor: HotkeyMonitoring {
         isPressed = false
     }
 
+    /// Reaktiviert den Event-Tap, nachdem macOS ihn deaktiviert hat (Timeout/Last).
+    /// Ohne das bleibt der Hotkey nach hoher Systemlast stumm bis zum App-Neustart.
+    fileprivate func reEnableTap() {
+        guard let tap = eventTap else { return }
+        CGEvent.tapEnable(tap: tap, enable: true)
+        isPressed = false
+        Log.line("HotkeyMonitor: Tap war deaktiviert (System) → wieder aktiviert")
+    }
+
     // MARK: - Event-Verarbeitung (vom C-Callback aufgerufen)
 
     /// Wertet ein einzelnes `flagsChanged`-Event aus und feuert ggf. die Callbacks.
@@ -168,7 +177,14 @@ private func hotkeyEventCallback(
 ) -> Unmanaged<CGEvent>? {
     if let refcon = refcon {
         let monitor = Unmanaged<HotkeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
-        monitor.handle(event: event)
+        // macOS deaktiviert den Tap bei zu langer Callback-Zeit oder hoher Systemlast
+        // (z.B. während Indexieren). Dann MÜSSEN wir ihn selbst wieder aktivieren,
+        // sonst ist der Hotkey stumm bis zum App-Neustart.
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            monitor.reEnableTap()
+        } else {
+            monitor.handle(event: event)
+        }
     }
     // Event unverändert durchreichen.
     return Unmanaged.passUnretained(event)
