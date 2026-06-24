@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LaunchAgent: täglicher Murmel-Health-Check um 8:00 (und einmal beim Laden).
+  Installation (HOME wird beim Installieren ersetzt):
+    cp Scripts/health-check.sh ~/.murmel/health-check.sh && chmod +x ~/.murmel/health-check.sh
+    sed "s#HOME_PLACEHOLDER#$HOME#g" Scripts/health-check.plist > ~/Library/LaunchAgents/de.alexheyers.murmel.healthcheck.plist
+    launchctl unload ~/Library/LaunchAgents/de.alexheyers.murmel.healthcheck.plist 2>/dev/null
+    launchctl load -w ~/Library/LaunchAgents/de.alexheyers.murmel.healthcheck.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.alexheyers.murmel.healthcheck</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>HOME_PLACEHOLDER/.murmel/health-check.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>8</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>HOME_PLACEHOLDER/.murmel/health-launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>HOME_PLACEHOLDER/.murmel/health-launchd.log</string>
+</dict>
+</plist>
